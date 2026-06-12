@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, ReferenceLine,
@@ -26,14 +26,24 @@ function Field({ label, hint, children }) {
 }
 
 function Num({ value, onChange, step = 1, min = 0, suffix }) {
+  // hold raw text while typing so clearing the field doesn't snap to 0
+  const [text, setText] = useState(String(value))
+  useEffect(() => { setText(String(value)) }, [value])
   return (
     <div className="relative">
       <input
         type="number"
-        value={value}
+        value={text}
         step={step}
         min={min}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={(e) => {
+          setText(e.target.value)
+          const n = Number(e.target.value)
+          if (e.target.value !== '' && !Number.isNaN(n)) onChange(n)
+        }}
+        onBlur={() => {
+          if (text === '' || Number.isNaN(Number(text))) setText(String(value))
+        }}
         className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm
                    focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
       />
