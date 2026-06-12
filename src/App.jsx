@@ -149,7 +149,7 @@ export default function App() {
 
             <Field
               label="Price per sqft"
-              hint={`area range ${inr(area.pricePerSqft.low)}–${inr(area.pricePerSqft.high)}`}
+              hint={`range ${inr(area.pricePerSqft.low)}–${inr(area.pricePerSqft.high)} · ${area.confidence} confidence`}
             >
               <Num value={pricePerSqft} onChange={setPricePerSqft} step={100} suffix="₹/sqft" />
             </Field>
