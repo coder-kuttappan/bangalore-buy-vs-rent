@@ -219,8 +219,8 @@ export default function App() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-x-4 gap-y-3 sm:mb-8">
-        <div className="max-w-xl">
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-x-4 gap-y-3 sm:mb-8">
+        <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
             Buy vs Rent <span className="text-teal-700">Bangalore</span>
             <span className="ml-2 align-middle rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-700">
@@ -229,8 +229,7 @@ export default function App() {
           </h1>
           <p className="mt-2 text-stone-600">
             See whether buying or renting actually leaves you{' '}
-            <strong className="font-semibold text-stone-800">richer</strong> — by area, with
-            the taxes, costs and real break-even most calculators skip.
+            <strong className="font-semibold text-stone-800">richer</strong>.
           </p>
           <p className="mt-1 text-sm text-stone-400">No broker, no agenda.</p>
         </div>
