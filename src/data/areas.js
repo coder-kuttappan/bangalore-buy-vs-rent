@@ -79,9 +79,8 @@ export const DEFAULTS = {
   propertyTaxAnnual: Math.round(DEFAULT_SQFT * MARKET.recurring.propertyTaxPerSqftAnnual),
   maintenancePerSqftMonthly: MARKET.recurring.maintenancePerSqftMonthly,
   propertyTaxPerSqftAnnual: MARKET.recurring.propertyTaxPerSqftAnnual,
-  // renting (from market)
+  // renting (from market) — deposit is top-level state (₹), defaulted from months
   rentInflationPct: MARKET.renting.rentInflationPct,
-  securityDepositMonths: MARKET.renting.securityDepositMonths,
   // income tax (from market)
   claimTaxBenefit: true, // Sec 24b — old tax regime; New regime = false
   marginalTaxPct: MARKET.tax.defaultMarginalPct,

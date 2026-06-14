@@ -109,6 +109,9 @@ export default function App() {
 
   const [pricePerSqft, setPricePerSqft] = useState(area.pricePerSqft.mid)
   const [rentMonthly, setRentMonthly] = useState(defaultRent(area, '2 BHK'))
+  const [securityDeposit, setSecurityDeposit] = useState(
+    () => MARKET.renting.securityDepositMonths * defaultRent(area, '2 BHK'),
+  )
   const [downPaymentPct, setDownPaymentPct] = useState(20)
   const [adv, setAdv] = useState({ ...DEFAULTS, appreciationPct: area.appreciationPct })
   const [showAdv, setShowAdv] = useState(false)
@@ -135,9 +138,11 @@ export default function App() {
 
   function pickArea(name) {
     const a = AREAS.find((x) => x.name === name)
+    const rent = defaultRent(a, bhk)
     setAreaName(name)
     setPricePerSqft(a.pricePerSqft.mid)
-    setRentMonthly(defaultRent(a, bhk))
+    setRentMonthly(rent)
+    setSecurityDeposit(MARKET.renting.securityDepositMonths * rent)
     setAdv((prev) => ({ ...prev, appreciationPct: a.appreciationPct }))
   }
 
@@ -145,9 +150,11 @@ export default function App() {
   function resetAll() {
     const a = area
     const preset = BHK_PRESETS.find((b) => b.label === bhk)
+    const rent = defaultRent(a, bhk)
     setSqft(preset.sqft)
     setPricePerSqft(a.pricePerSqft.mid)
-    setRentMonthly(defaultRent(a, bhk))
+    setRentMonthly(rent)
+    setSecurityDeposit(MARKET.renting.securityDepositMonths * rent)
     setDownPaymentPct(20)
     setAdv({ ...DEFAULTS, appreciationPct: a.appreciationPct })
     setPrevInvestFraction(DEFAULTS.investFraction)
@@ -171,9 +178,11 @@ export default function App() {
 
   function pickBhk(label) {
     const preset = BHK_PRESETS.find((b) => b.label === label)
+    const rent = defaultRent(area, label)
     setBhk(label)
     setSqft(preset.sqft)
-    setRentMonthly(defaultRent(area, label))
+    setRentMonthly(rent)
+    setSecurityDeposit(MARKET.renting.securityDepositMonths * rent)
   }
 
   const simInputs = useMemo(
@@ -193,7 +202,7 @@ export default function App() {
       maintenanceMonthly: adv.maintenanceMonthly,
       propertyTaxAnnual: adv.propertyTaxAnnual,
       sellingCostPct: adv.sellingCostPct,
-      securityDepositMonths: adv.securityDepositMonths,
+      securityDeposit,
       gstPct: adv.propertyType === 'under-construction'
         ? MARKET.cost.gstPct.underConstruction
         : MARKET.cost.gstPct.ready,
@@ -202,7 +211,7 @@ export default function App() {
       marginalTaxPct: adv.marginalTaxPct,
       interestDeductionCap: MARKET.tax.homeLoanInterestCap,
     }),
-    [price, downPayment, rentMonthly, sqft, adv],
+    [price, downPayment, rentMonthly, securityDeposit, sqft, adv],
   )
 
   const result = useMemo(() => simulate(simInputs), [simInputs])
@@ -229,9 +238,9 @@ export default function App() {
           </h1>
           <p className="mt-2 text-stone-600">
             See whether buying or renting actually leaves you{' '}
-            <strong className="font-semibold text-stone-800">richer</strong>.
+            <strong className="font-semibold text-stone-800">richer</strong>.{' '}
+            <span className="text-stone-400">No broker, no agenda.</span>
           </p>
-          <p className="mt-1 text-sm text-stone-400">No broker, no agenda.</p>
         </div>
         <div className="flex items-center gap-2 text-xs text-stone-400">
           <span>Area data as of {DATA_ASOF}</span>
@@ -375,27 +384,29 @@ export default function App() {
               <Num value={rentMonthly} onChange={setRentMonthly} step={1000} suffix="₹/mo" />
             </Field>
 
-            <Field
-              label="Security deposit"
-              hint={`${inr(adv.securityDepositMonths * rentMonthly)} locked up`}
-            >
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min={0}
-                  max={12}
-                  step={1}
-                  value={adv.securityDepositMonths}
-                  onChange={(e) => setAdv({ ...adv, securityDepositMonths: Number(e.target.value) })}
-                  className="flex-1 accent-teal-700"
-                />
-                <span className="w-20 text-right text-sm font-medium">
-                  {adv.securityDepositMonths} mo
-                </span>
+            <Field label="Security deposit" hint="set either — they stay linked">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Num
+                    value={securityDeposit}
+                    step={25000}
+                    onChange={(v) => setSecurityDeposit(v)}
+                    suffix="₹ total"
+                  />
+                </div>
+                <div className="w-28">
+                  <Num
+                    value={rentMonthly > 0 ? Math.round(securityDeposit / rentMonthly) : 0}
+                    step={1}
+                    onChange={(v) => setSecurityDeposit(v * rentMonthly)}
+                    suffix="months"
+                  />
+                </div>
               </div>
               <p className="mt-1 text-xs text-stone-400">
-                Refundable, but sits idle earning nothing while you rent — the lost
-                returns are a real cost.
+                Refundable, but sits idle earning nothing while you rent — the lost returns
+                are a real cost. Landlords quote a number, so set the amount directly or in
+                months of rent.
               </p>
             </Field>
 
@@ -464,7 +475,7 @@ export default function App() {
               </Field>
 
               <Field
-                label="How much of the monthly gap you'd actually invest"
+                label="How much of the monthly savings you'd actually invest"
                 hint={`${adv.investFraction}%`}
               >
                 <div className="flex items-center gap-3">

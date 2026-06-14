@@ -39,7 +39,7 @@ export function simulate(inputs) {
     maintenanceMonthly,    // ₹ owner-paid society maintenance
     propertyTaxAnnual,     // ₹
     sellingCostPct,        // brokerage etc. on eventual sale
-    securityDepositMonths = 0, // months of rent locked as a refundable deposit
+    securityDeposit = 0,   // ₹ locked as a refundable deposit (landlord's number)
     gstPct = 0,            // GST on under-construction property (5%/1%); 0 for ready/resale
     interiorsCost = 0,     // ₹ upfront fit-out the buyer pays, the renter doesn't
     claimTaxBenefit = false, // Sec 24b interest deduction (old regime only)
@@ -58,9 +58,9 @@ export function simulate(inputs) {
 
   // the renter's deposit is refundable, but it sits idle earning nothing — so it
   // comes out of the cash they'd otherwise invest, and is added back (nominal)
-  // in net worth. The lost compounding is the real cost. Held flat at the
-  // starting level (a simplification — in reality it tracks rent on renewal).
-  const deposit = securityDepositMonths * rentMonthly
+  // in net worth. The lost compounding is the real cost. Held flat (a
+  // simplification — in reality it tracks rent on renewal).
+  const deposit = securityDeposit
 
   let loanBalance = loan
   let homeValue = price
