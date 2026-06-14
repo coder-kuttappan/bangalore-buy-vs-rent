@@ -437,31 +437,59 @@ export default function App() {
                   </p>
                 </Field>
 
-                <Field label="Interiors / fit-out" hint={`${inr(adv.interiorsPerSqft * sqft)} total`}>
-                  <Num
-                    value={adv.interiorsPerSqft}
-                    step={250}
-                    onChange={(v) => setAdv({ ...adv, interiorsPerSqft: v })}
-                    suffix="₹/sqft"
-                  />
+                <Field label="Interiors budget" hint="set either — they stay linked">
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Num
+                        value={adv.interiorsPerSqft * sqft}
+                        step={50000}
+                        onChange={(v) => setAdv({ ...adv, interiorsPerSqft: Math.round(v / sqft) })}
+                        suffix="₹ total"
+                      />
+                    </div>
+                    <div className="w-28">
+                      <Num
+                        value={adv.interiorsPerSqft}
+                        step={250}
+                        onChange={(v) => setAdv({ ...adv, interiorsPerSqft: v })}
+                        suffix="₹/sqft"
+                      />
+                    </div>
+                  </div>
                   <p className="mt-1 text-xs text-stone-400">
-                    A new flat needs fit-out (kitchen, wardrobes, fixtures) before it's
-                    livable — a cost the renter skips.
+                    A new flat needs interiors (kitchen, wardrobes, fixtures) before it's
+                    livable — a cost the renter skips. Don't know the budget? The per-sqft
+                    rate gives you a ballpark.
                   </p>
                 </Field>
 
-                <Field label="Home-loan tax benefit">
-                  <label className="flex items-center gap-2 text-sm text-stone-600">
-                    <input
-                      type="checkbox"
-                      checked={adv.claimTaxBenefit}
-                      onChange={(e) => setAdv({ ...adv, claimTaxBenefit: e.target.checked })}
-                      className="h-4 w-4 accent-teal-700"
-                    />
-                    Claim Section 24b (old tax regime)
-                  </label>
+                <Field label="Which tax regime are you on?">
+                  <div className="flex gap-2">
+                    {[
+                      [true, 'Old regime'],
+                      [false, 'New regime'],
+                    ].map(([val, label]) => (
+                      <button
+                        key={label}
+                        onClick={() => setAdv({ ...adv, claimTaxBenefit: val })}
+                        className={`flex-1 rounded-lg px-3 py-2 text-sm transition ${
+                          adv.claimTaxBenefit === val
+                            ? 'bg-teal-700 text-white'
+                            : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-stone-400">
+                    The old regime lets you deduct up to ₹2L/yr of home-loan interest
+                    (Section 24b); the new regime gives no benefit on a home you live in.
+                    Most salaried people default to the new regime unless they actively
+                    claim deductions. (80C principal is excluded — usually already used up.)
+                  </p>
                   {adv.claimTaxBenefit && (
-                    <div className="mt-2">
+                    <div className="mt-3">
                       <Field label="Your income-tax slab">
                         <Num
                           value={adv.marginalTaxPct}
@@ -472,11 +500,6 @@ export default function App() {
                       </Field>
                     </div>
                   )}
-                  <p className="mt-1 text-xs text-stone-400">
-                    Up to ₹2L/yr of loan interest is deductible — but only under the old
-                    regime. The new regime gives no benefit on a self-occupied home.
-                    (80C principal is excluded — usually already used up by EPF/insurance.)
-                  </p>
                 </Field>
               </div>
             )}
@@ -670,7 +693,7 @@ export default function App() {
                 </p>
                 <p>
                   <strong className="text-stone-700">Costs &amp; tax are modelled.</strong> GST on
-                  under-construction flats, interiors/fit-out, and the Section 24b interest
+                  under-construction flats, interiors, and the Section 24b interest
                   deduction (old regime) are all in — toggle them under <em>Costs &amp; taxes</em>.
                 </p>
                 <p className="text-stone-400">
