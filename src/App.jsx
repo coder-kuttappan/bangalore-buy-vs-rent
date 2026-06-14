@@ -3,7 +3,9 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, ReferenceLine,
 } from 'recharts'
-import { simulate, appreciationTippingPoint, findBreakEven } from './lib/calc'
+import {
+  simulate, appreciationTippingPoint, investReturnTippingPoint, findBreakEven,
+} from './lib/calc'
 import { inr, inrFull, years } from './lib/format'
 import { AREAS, BHK_PRESETS, DEFAULTS, DATA_ASOF } from './data/areas'
 
@@ -161,8 +163,9 @@ export default function App() {
   const breakEven = useMemo(() => findBreakEven(simInputs), [simInputs])
   const breakEvenYear = breakEven === null ? null : new Date().getFullYear() + Math.round(breakEven)
 
-  // the appreciation rate at which buying breaks even — everything else held
+  // the two levers that flip the verdict, everything else held
   const tippingAppreciation = useMemo(() => appreciationTippingPoint(simInputs), [simInputs])
+  const tippingInvestReturn = useMemo(() => investReturnTippingPoint(simInputs), [simInputs])
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -439,18 +442,34 @@ export default function App() {
             <div className="mt-2 opacity-90">
               by <strong>{inr(result.margin)}</strong> in net worth
             </div>
-            <div className="mt-3 border-t border-white/20 pt-3 text-sm opacity-90">
-              {tippingAppreciation === null ? (
-                <>Even at 30%/yr appreciation, renting still comes out ahead here.</>
-              ) : tippingAppreciation <= 0 ? (
-                <>Buying wins at any positive appreciation rate.</>
-              ) : (
-                <>
-                  Buying wins if appreciation beats{' '}
-                  <strong>{tippingAppreciation.toFixed(1)}%/yr</strong>
-                  {' '}— you've assumed {adv.appreciationPct}%.
-                </>
-              )}
+            <div className="mt-3 space-y-2 border-t border-white/20 pt-3 text-sm opacity-90">
+              <div>
+                {tippingAppreciation === null ? (
+                  <>Even at 30%/yr appreciation, renting still comes out ahead here.</>
+                ) : tippingAppreciation <= 0 ? (
+                  <>Buying wins at any positive appreciation rate.</>
+                ) : (
+                  <>
+                    Buying wins if appreciation beats{' '}
+                    <strong>{tippingAppreciation.toFixed(1)}%/yr</strong>
+                    {' '}— you've assumed {adv.appreciationPct}%.
+                  </>
+                )}
+              </div>
+              <div>
+                {tippingInvestReturn === null ? (
+                  <>Even earning 30%/yr on your savings, renting can't catch up — that's the leverage talking.</>
+                ) : tippingInvestReturn <= 0 ? (
+                  <>Renting wins at any realistic investment return.</>
+                ) : (
+                  <>
+                    Flip it: renting wins if your savings earn more than{' '}
+                    <strong>{tippingInvestReturn.toFixed(1)}%/yr</strong>
+                    {' '}— you've assumed {adv.investReturnPct}%. Equity mutual funds have
+                    historically returned ~11%.
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
