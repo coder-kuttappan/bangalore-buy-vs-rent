@@ -7,3 +7,11 @@
 body {
   @apply bg-stone-100 text-stone-900 antialiased;
 }
+
+/* iOS Safari zooms (and clips) the page when you focus an input smaller than
+   16px. Force 16px on form controls so tapping a field doesn't zoom. */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
