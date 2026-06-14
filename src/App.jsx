@@ -84,7 +84,9 @@ export default function App() {
   const [downPaymentPct, setDownPaymentPct] = useState(20)
   const [adv, setAdv] = useState({ ...DEFAULTS, appreciationPct: area.appreciationPct })
   const [showAdv, setShowAdv] = useState(false)
+  const [showCosts, setShowCosts] = useState(false)
   const [showMethod, setShowMethod] = useState(false)
+  const [showLeftOut, setShowLeftOut] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
   // remembers where the invest-discipline slider was before "It gets spent"
   // zeroed it, so switching back to FD / mutual funds restores that value
@@ -151,8 +153,12 @@ export default function App() {
       propertyTaxAnnual: adv.propertyTaxAnnual,
       sellingCostPct: adv.sellingCostPct,
       securityDepositMonths: adv.securityDepositMonths,
+      gstPct: adv.propertyType === 'under-construction' ? 5 : 0,
+      interiorsCost: adv.interiorsPerSqft * sqft,
+      claimTaxBenefit: adv.claimTaxBenefit,
+      marginalTaxPct: adv.marginalTaxPct,
     }),
-    [price, downPayment, rentMonthly, adv],
+    [price, downPayment, rentMonthly, sqft, adv],
   )
 
   const result = useMemo(() => simulate(simInputs), [simInputs])
@@ -173,6 +179,9 @@ export default function App() {
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="text-3xl font-bold tracking-tight">
             Buy vs Rent <span className="text-teal-700">Bangalore</span>
+            <span className="ml-2 align-middle rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-700">
+              beta
+            </span>
           </h1>
           <p className="text-stone-500">
             The actual math, by area. No broker, no agenda.
@@ -395,6 +404,86 @@ export default function App() {
 
           <div className="rounded-2xl bg-white p-5 shadow-sm">
             <button
+              onClick={() => setShowCosts(!showCosts)}
+              className="flex w-full items-center justify-between text-sm font-medium text-stone-700"
+            >
+              Costs &amp; taxes
+              <span className="text-stone-400">{showCosts ? '−' : '+'}</span>
+            </button>
+            {showCosts && (
+              <div className="mt-4 space-y-4">
+                <Field label="Property type" hint={adv.propertyType === 'under-construction' ? `+${inr(price * 0.05)} GST` : 'no GST'}>
+                  <div className="flex gap-2">
+                    {[
+                      ['ready', 'Ready / resale'],
+                      ['under-construction', 'Under-construction'],
+                    ].map(([val, label]) => (
+                      <button
+                        key={val}
+                        onClick={() => setAdv({ ...adv, propertyType: val })}
+                        className={`flex-1 rounded-lg px-3 py-2 text-sm transition ${
+                          adv.propertyType === val
+                            ? 'bg-teal-700 text-white'
+                            : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-stone-400">
+                    Under-construction flats attract 5% GST (1% for affordable housing).
+                    Ready-to-move and resale have none.
+                  </p>
+                </Field>
+
+                <Field label="Interiors / fit-out" hint={`${inr(adv.interiorsPerSqft * sqft)} total`}>
+                  <Num
+                    value={adv.interiorsPerSqft}
+                    step={250}
+                    onChange={(v) => setAdv({ ...adv, interiorsPerSqft: v })}
+                    suffix="₹/sqft"
+                  />
+                  <p className="mt-1 text-xs text-stone-400">
+                    A new flat needs fit-out (kitchen, wardrobes, fixtures) before it's
+                    livable — a cost the renter skips.
+                  </p>
+                </Field>
+
+                <Field label="Home-loan tax benefit">
+                  <label className="flex items-center gap-2 text-sm text-stone-600">
+                    <input
+                      type="checkbox"
+                      checked={adv.claimTaxBenefit}
+                      onChange={(e) => setAdv({ ...adv, claimTaxBenefit: e.target.checked })}
+                      className="h-4 w-4 accent-teal-700"
+                    />
+                    Claim Section 24b (old tax regime)
+                  </label>
+                  {adv.claimTaxBenefit && (
+                    <div className="mt-2">
+                      <Field label="Your income-tax slab">
+                        <Num
+                          value={adv.marginalTaxPct}
+                          step={5}
+                          onChange={(v) => setAdv({ ...adv, marginalTaxPct: v })}
+                          suffix="%"
+                        />
+                      </Field>
+                    </div>
+                  )}
+                  <p className="mt-1 text-xs text-stone-400">
+                    Up to ₹2L/yr of loan interest is deductible — but only under the old
+                    regime. The new regime gives no benefit on a self-occupied home.
+                    (80C principal is excluded — usually already used up by EPF/insurance.)
+                  </p>
+                </Field>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl bg-white p-5 shadow-sm">
+            <button
               onClick={() => setShowAdv(!showAdv)}
               className="flex w-full items-center justify-between text-sm font-medium text-stone-700"
             >
@@ -434,7 +523,7 @@ export default function App() {
             }`}
           >
             <div className="text-sm uppercase tracking-wide opacity-80">
-              After {adv.horizonYears} years, you're better off
+              On your assumptions, after {adv.horizonYears} years you're better off
             </div>
             <div className="mt-1 text-4xl font-bold">
               {verdictBuy ? 'Buying' : 'Renting'}
@@ -579,13 +668,62 @@ export default function App() {
                   price. So the buy and rent sides compare the <em>same</em> home, instead of
                   pricing a new flat against the rent of an old one.
                 </p>
+                <p>
+                  <strong className="text-stone-700">Costs &amp; tax are modelled.</strong> GST on
+                  under-construction flats, interiors/fit-out, and the Section 24b interest
+                  deduction (old regime) are all in — toggle them under <em>Costs &amp; taxes</em>.
+                </p>
                 <p className="text-stone-400">
                   This is arithmetic, not advice. It assumes the renter actually invests the
-                  difference (the slider lets you dial in how much they really would), and
-                  ignores home-loan interest tax deductions. Area data as of {DATA_ASOF}.
-                  Override any default with a real quote for your own decision.
+                  difference (the slider lets you dial in how much they really would). Area data
+                  as of {DATA_ASOF}. Override any default with a real quote for your own decision.
                 </p>
               </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl bg-white p-5 shadow-sm">
+            <button
+              onClick={() => setShowLeftOut(!showLeftOut)}
+              className="flex w-full items-center justify-between text-sm font-medium text-stone-700"
+            >
+              What this leaves out
+              <span className="text-stone-400">{showLeftOut ? '−' : '+'}</span>
+            </button>
+            {showLeftOut && (
+              <ul className="mt-4 space-y-2 text-xs leading-relaxed text-stone-500">
+                <li>
+                  <strong className="text-stone-700">The risk of a bad year to sell.</strong>{' '}
+                  Appreciation and returns are smooth averages — no crashes or booms. The real
+                  danger, a downturn the year you need to sell, isn't modelled yet.
+                </li>
+                <li>
+                  <strong className="text-stone-700">Selling isn't instant or free.</strong> We
+                  assume you can sell at market value any time; property is illiquid and can take
+                  months, and the 2% selling cost is on the light side.
+                </li>
+                <li>
+                  <strong className="text-stone-700">The interest rate never moves.</strong> Real
+                  home loans float — a rate rise would raise your EMI and shift the verdict.
+                </li>
+                <li>
+                  <strong className="text-stone-700">Exit tax (LTCG).</strong> Capital-gains tax on
+                  the home sale and on the renter's investments isn't counted yet.
+                </li>
+                <li>
+                  <strong className="text-stone-700">The non-financial stuff.</strong> Security,
+                  the freedom to move, not dealing with a landlord — none of that shows up in a
+                  net-worth number.
+                </li>
+                <li>
+                  <strong className="text-stone-700">Renting it out.</strong> This compares buying
+                  to live in vs renting to live in — not buying as an investment to let.
+                </li>
+                <li className="text-stone-400">
+                  We're adding these one by one. Each is a known gap, owned on purpose — not a
+                  thing we hope you don't notice.
+                </li>
+              </ul>
             )}
           </div>
         </div>

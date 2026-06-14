@@ -70,6 +70,10 @@ export const DEFAULTS = {
   propertyTaxPerSqftAnnual: 4.5,   // BBMP self-occupied ballpark
   sellingCostPct: 2,     // brokerage on eventual sale
   securityDepositMonths: 6,  // Bangalore norm 6–10 months; locked, earns nothing
+  propertyType: 'ready', // 'ready' (0% GST) | 'under-construction' (5% GST)
+  interiorsPerSqft: 1500, // basic fit-out for a new flat (modular kitchen, wardrobes)
+  claimTaxBenefit: true, // Sec 24b interest deduction — old tax regime only
+  marginalTaxPct: 30,    // buyer's income-tax slab for the 24b benefit
 }
 
 // What kind of stock the price (and matched rent) defaults describe. Most areas
