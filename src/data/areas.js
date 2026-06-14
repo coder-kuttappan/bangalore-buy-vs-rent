@@ -73,7 +73,7 @@ export const DEFAULTS = {
   registrationPct: MARKET.cost.registrationPct,
   sellingCostPct: MARKET.cost.sellingCostPct,
   propertyType: 'ready', // 'ready' (0% GST) | 'under-construction'
-  interiorsPerSqft: MARKET.cost.interiorsPerSqft,
+  interiorsBudget: Math.round(DEFAULT_SQFT * MARKET.cost.interiorsPerSqft), // total ₹; per-sqft derived in UI
   // recurring (from market) — maintenance & tax scale with size, recomputed live
   maintenanceMonthly: Math.round(DEFAULT_SQFT * MARKET.recurring.maintenancePerSqftMonthly),
   propertyTaxAnnual: Math.round(DEFAULT_SQFT * MARKET.recurring.propertyTaxPerSqftAnnual),
