@@ -277,16 +277,19 @@ export default function App() {
       <div className="grid gap-8 lg:grid-cols-[360px_1fr]">
         {/* inputs */}
         <div className="min-w-0 space-y-4">
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={resetAll}
-              className="text-xs text-stone-400 transition hover:text-teal-700"
-            >
-              ↺ Reset to defaults
-            </button>
-          </div>
           <div className="rounded-2xl bg-white p-5 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+              <span className="text-xs font-semibold uppercase tracking-wide text-stone-400">
+                Your scenario
+              </span>
+              <button
+                type="button"
+                onClick={resetAll}
+                className="text-xs text-stone-400 transition hover:text-teal-700"
+              >
+                ↺ Reset to defaults
+              </button>
+            </div>
             <Field label="Area">
               <select
                 value={areaName}
