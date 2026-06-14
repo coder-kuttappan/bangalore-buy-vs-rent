@@ -31,6 +31,21 @@ function ConfBadge({ level }) {
   )
 }
 
+function SourceLink({ href }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      title="See the market source (99acres)"
+      className="whitespace-nowrap text-stone-400 underline decoration-dotted hover:text-teal-700"
+    >
+      source ↗
+    </a>
+  )
+}
+
 function Field({ label, hint, dirty, onReset, children }) {
   return (
     <label className="block">
@@ -315,6 +330,7 @@ export default function App() {
                 <span className="inline-flex items-center gap-1.5">
                   range {inr(area.pricePerSqft.low)}–{inr(area.pricePerSqft.high)}{' '}
                   <ConfBadge level={area.confidence} />
+                  <SourceLink href={area.sources.rates} />
                 </span>
               }
             >
@@ -343,7 +359,11 @@ export default function App() {
 
             <Field
               label="Monthly rent for an equivalent home"
-              hint={`typical ${inr(defaultRent(area, bhk))}`}
+              hint={
+                <span className="inline-flex items-center gap-1.5">
+                  typical {inr(defaultRent(area, bhk))} <SourceLink href={area.sources.rent} />
+                </span>
+              }
               dirty={rentMonthly !== defaultRent(area, bhk)}
               onReset={() => setRentMonthly(defaultRent(area, bhk))}
             >
@@ -386,6 +406,7 @@ export default function App() {
                 hint={
                   <span className="inline-flex items-center gap-1.5">
                     {area.name} ~{area.appreciationPct}%/yr <ConfBadge level={area.appConfidence} />
+                    <SourceLink href={area.sources.rates} />
                   </span>
                 }
               >
