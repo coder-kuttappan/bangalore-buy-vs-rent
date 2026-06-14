@@ -302,7 +302,7 @@ export default function App() {
             </Field>
 
             <Field label="Size">
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {BHK_PRESETS.map((b) => (
                   <button
                     key={b.label}
@@ -665,7 +665,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             {[
               ['EMI', inr(result.emi) + '/mo'],
               ['Cash needed upfront', inr(downPayment + result.upfrontCosts)],
@@ -676,9 +676,9 @@ export default function App() {
                   : `${years(breakEven)} · ${breakEvenYear}`,
               ],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl bg-white p-4 shadow-sm">
-                <div className="text-xs uppercase tracking-wide text-stone-400">{label}</div>
-                <div className="mt-1 text-lg font-semibold">{value}</div>
+              <div key={label} className="rounded-2xl bg-white p-3 sm:p-4 shadow-sm">
+                <div className="text-[11px] uppercase tracking-wide text-stone-400 sm:text-xs">{label}</div>
+                <div className="mt-1 text-sm font-semibold sm:text-lg">{value}</div>
               </div>
             ))}
           </div>
