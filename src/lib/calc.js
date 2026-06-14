@@ -44,6 +44,7 @@ export function simulate(inputs) {
     interiorsCost = 0,     // ₹ upfront fit-out the buyer pays, the renter doesn't
     claimTaxBenefit = false, // Sec 24b interest deduction (old regime only)
     marginalTaxPct = 0,    // buyer's income-tax slab, for the 24b benefit
+    interestDeductionCap = 200000, // annual cap on deductible loan interest (Sec 24b)
   } = inputs
 
   const loan = Math.max(price - downPayment, 0)
@@ -107,7 +108,7 @@ export function simulate(inputs) {
     // step rent up.
     if (m % 12 === 0) {
       if (claimTaxBenefit) {
-        const deductible = Math.min(yearInterest, 200000)
+        const deductible = Math.min(yearInterest, interestDeductionCap)
         buyerPortfolio += deductible * (marginalTaxPct / 100)
       }
       yearInterest = 0
