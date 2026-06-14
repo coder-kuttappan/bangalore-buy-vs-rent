@@ -158,3 +158,24 @@ export function appreciationTippingPoint(inputs, lo = 0, hi = 30) {
   }
   return (lo + hi) / 2
 }
+
+// The investment return at which renting overtakes buying. A higher return on
+// the renter's invested cash favours renting, so the gap (buy − rent) shrinks
+// as return rises — there's a threshold above which renting wins. Returns:
+//   - a % number: renting wins above this return
+//   - null: buying wins even at the top of the search range (leverage too strong)
+//   - 0: renting wins even at 0% return
+export function investReturnTippingPoint(inputs, lo = 0, hi = 30) {
+  const gapAt = (pct) => {
+    const r = simulate({ ...inputs, investReturnPct: pct })
+    return r.buyNetWorthAtHorizon - r.rentNetWorthAtHorizon
+  }
+  if (gapAt(lo) < 0) return 0
+  if (gapAt(hi) >= 0) return null
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2
+    if (gapAt(mid) >= 0) lo = mid
+    else hi = mid
+  }
+  return (lo + hi) / 2
+}
