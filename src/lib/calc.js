@@ -40,11 +40,17 @@ export function simulate(inputs) {
     propertyTaxAnnual,     // ₹
     sellingCostPct,        // brokerage etc. on eventual sale
     securityDepositMonths = 0, // months of rent locked as a refundable deposit
+    gstPct = 0,            // GST on under-construction property (5%/1%); 0 for ready/resale
+    interiorsCost = 0,     // ₹ upfront fit-out the buyer pays, the renter doesn't
+    claimTaxBenefit = false, // Sec 24b interest deduction (old regime only)
+    marginalTaxPct = 0,    // buyer's income-tax slab, for the 24b benefit
   } = inputs
 
   const loan = Math.max(price - downPayment, 0)
   const monthlyEmi = emi(loan, loanRatePct, tenureYears)
-  const upfrontCosts = price * (stampDutyPct + registrationPct) / 100
+  // upfront the buyer sinks: stamp duty + registration + GST on the price, plus
+  // one-time interiors. The renter avoids all of it and keeps it invested.
+  const upfrontCosts = price * (stampDutyPct + registrationPct + gstPct) / 100 + interiorsCost
   const monthlyLoanRate = loanRatePct / 100 / 12
   const monthlyInvestRate = Math.pow(1 + investReturnPct / 100, 1 / 12) - 1
   const monthlyAppreciation = Math.pow(1 + appreciationPct / 100, 1 / 12) - 1
@@ -61,6 +67,7 @@ export function simulate(inputs) {
   let renterPortfolio = downPayment + upfrontCosts - deposit // cash invested, deposit set aside
   let buyerPortfolio = 0
   let totalInterest = 0
+  let yearInterest = 0   // interest paid in the current year, for the 24b cap
   let totalRentPaid = 0
   let breakEvenMonth = null
 
@@ -79,6 +86,7 @@ export function simulate(inputs) {
       const interest = loanBalance * monthlyLoanRate
       const principalPaid = Math.min(monthlyEmi - interest, loanBalance)
       totalInterest += interest
+      yearInterest += interest
       loanBalance -= principalPaid
       emiThisMonth = interest + principalPaid
     }
@@ -94,8 +102,17 @@ export function simulate(inputs) {
     if (diff > 0) renterPortfolio += diff * invested
     else buyerPortfolio += -diff * invested
 
-    // rent rises once a year
-    if (m % 12 === 0) rent *= 1 + rentInflationPct / 100
+    // year-end: Sec 24b refund (capped at ₹2L interest) goes into the buyer's
+    // pocket — modelled as money they invest. Then reset the yearly counter and
+    // step rent up.
+    if (m % 12 === 0) {
+      if (claimTaxBenefit) {
+        const deductible = Math.min(yearInterest, 200000)
+        buyerPortfolio += deductible * (marginalTaxPct / 100)
+      }
+      yearInterest = 0
+      rent *= 1 + rentInflationPct / 100
+    }
 
     const snap = snapshot(m)
     if (breakEvenMonth === null && m > 0 && snap.buyNetWorth >= snap.rentNetWorth) {
