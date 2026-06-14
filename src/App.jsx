@@ -157,7 +157,7 @@ export default function App() {
       gstPct: adv.propertyType === 'under-construction'
         ? MARKET.cost.gstPct.underConstruction
         : MARKET.cost.gstPct.ready,
-      interiorsCost: adv.interiorsPerSqft * sqft,
+      interiorsCost: adv.interiorsBudget,
       claimTaxBenefit: adv.claimTaxBenefit,
       marginalTaxPct: adv.marginalTaxPct,
       interestDeductionCap: MARKET.tax.homeLoanInterestCap,
@@ -445,17 +445,17 @@ export default function App() {
                   <div className="flex gap-2">
                     <div className="flex-1">
                       <Num
-                        value={adv.interiorsPerSqft * sqft}
+                        value={adv.interiorsBudget}
                         step={50000}
-                        onChange={(v) => setAdv({ ...adv, interiorsPerSqft: Math.round(v / sqft) })}
+                        onChange={(v) => setAdv({ ...adv, interiorsBudget: v })}
                         suffix="₹ total"
                       />
                     </div>
                     <div className="w-28">
                       <Num
-                        value={adv.interiorsPerSqft}
+                        value={Math.round(adv.interiorsBudget / sqft)}
                         step={250}
-                        onChange={(v) => setAdv({ ...adv, interiorsPerSqft: v })}
+                        onChange={(v) => setAdv({ ...adv, interiorsBudget: v * sqft })}
                         suffix="₹/sqft"
                       />
                     </div>
