@@ -7,6 +7,8 @@
 // carry upward listing bias. 3BHK rent mids are the weakest numbers (partly
 // derived from 2BHK ratios).
 
+import { MARKET } from '../markets/india.js'
+
 export const DATA_ASOF = 'June 2026'
 
 // rentNew = rent for a NEW gated-community flat — the same segment the price
@@ -52,28 +54,37 @@ export const BHK_PRESETS = [
   { label: '3 BHK', sqft: 1650 },
 ]
 
+// The form's starting state. Market policy (costs, tax, norms) comes from the
+// market profile; only the universal user assumptions (appreciation seed,
+// investment return, horizon, etc.) live inline here. appreciationPct is just a
+// seed — it's overwritten by the selected area's per-area rate on first render.
+const DEFAULT_SQFT = 1150
 export const DEFAULTS = {
-  loanRatePct: 8.0,      // SBI from ~7.25-7.5%, HDFC 7.75-8.15%; 8% for salaried 750+ CIBIL
-  tenureYears: 20,
-  appreciationPct: 7,    // long-run defensible; boom-era 13%+ YoY is mix-distorted
-  investReturnPct: 7,    // default to FD — the realistic floor most people park cash at
+  // universal user assumptions
+  appreciationPct: 7,
+  investReturnPct: 7,    // FD — the realistic floor most people park cash at
   investFraction: 100,   // % of the monthly EMI-vs-rent gap actually invested
-  rentInflationPct: 5,
   horizonYears: 10,
-  stampDutyPct: 5.6,     // Karnataka >₹45L: 5% + ~0.6% cess/surcharge
-  registrationPct: 2,    // doubled from 1% effective Aug 31, 2025
-  // maintenance and property tax scale with flat size (see rates below) — these
-  // initial values are for the default 1150 sqft and get recomputed live
-  maintenanceMonthly: 4025,        // = 1150 × ₹3.5/sqft/mo
-  propertyTaxAnnual: 5175,         // = 1150 × ₹4.5/sqft/yr (BBMP self-occupied; anchor: 3BHK Horamavu ~₹7k)
-  maintenancePerSqftMonthly: 3.5,  // typical gated-community society maintenance
-  propertyTaxPerSqftAnnual: 4.5,   // BBMP self-occupied ballpark
-  sellingCostPct: 2,     // brokerage on eventual sale
-  securityDepositMonths: 6,  // Bangalore norm 6–10 months; locked, earns nothing
-  propertyType: 'ready', // 'ready' (0% GST) | 'under-construction' (5% GST)
-  interiorsPerSqft: 1500, // basic fit-out for a new flat (modular kitchen, wardrobes)
-  claimTaxBenefit: true, // Sec 24b interest deduction — old tax regime only
-  marginalTaxPct: 30,    // buyer's income-tax slab for the 24b benefit
+  // financing (from market)
+  loanRatePct: MARKET.financing.loanRatePct,
+  tenureYears: MARKET.financing.tenureYears,
+  // transaction costs (from market)
+  stampDutyPct: MARKET.cost.stampDutyPct,
+  registrationPct: MARKET.cost.registrationPct,
+  sellingCostPct: MARKET.cost.sellingCostPct,
+  propertyType: 'ready', // 'ready' (0% GST) | 'under-construction'
+  interiorsPerSqft: MARKET.cost.interiorsPerSqft,
+  // recurring (from market) — maintenance & tax scale with size, recomputed live
+  maintenanceMonthly: Math.round(DEFAULT_SQFT * MARKET.recurring.maintenancePerSqftMonthly),
+  propertyTaxAnnual: Math.round(DEFAULT_SQFT * MARKET.recurring.propertyTaxPerSqftAnnual),
+  maintenancePerSqftMonthly: MARKET.recurring.maintenancePerSqftMonthly,
+  propertyTaxPerSqftAnnual: MARKET.recurring.propertyTaxPerSqftAnnual,
+  // renting (from market)
+  rentInflationPct: MARKET.renting.rentInflationPct,
+  securityDepositMonths: MARKET.renting.securityDepositMonths,
+  // income tax (from market)
+  claimTaxBenefit: true, // Sec 24b — old tax regime; New regime = false
+  marginalTaxPct: MARKET.tax.defaultMarginalPct,
 }
 
 // What kind of stock the price (and matched rent) defaults describe. Most areas

@@ -8,6 +8,7 @@ import {
 } from './lib/calc'
 import { inr, inrFull, years } from './lib/format'
 import { AREAS, BHK_PRESETS, DEFAULTS, DATA_ASOF } from './data/areas'
+import { MARKET } from './markets/india'
 
 function defaultRent(area, bhkLabel) {
   // rentNew = rent for the same new-gated segment the price describes, so the
@@ -153,10 +154,13 @@ export default function App() {
       propertyTaxAnnual: adv.propertyTaxAnnual,
       sellingCostPct: adv.sellingCostPct,
       securityDepositMonths: adv.securityDepositMonths,
-      gstPct: adv.propertyType === 'under-construction' ? 5 : 0,
+      gstPct: adv.propertyType === 'under-construction'
+        ? MARKET.cost.gstPct.underConstruction
+        : MARKET.cost.gstPct.ready,
       interiorsCost: adv.interiorsPerSqft * sqft,
       claimTaxBenefit: adv.claimTaxBenefit,
       marginalTaxPct: adv.marginalTaxPct,
+      interestDeductionCap: MARKET.tax.homeLoanInterestCap,
     }),
     [price, downPayment, rentMonthly, sqft, adv],
   )
@@ -412,7 +416,7 @@ export default function App() {
             </button>
             {showCosts && (
               <div className="mt-4 space-y-4">
-                <Field label="Property type" hint={adv.propertyType === 'under-construction' ? `+${inr(price * 0.05)} GST` : 'no GST'}>
+                <Field label="Property type" hint={adv.propertyType === 'under-construction' ? `+${inr(price * MARKET.cost.gstPct.underConstruction / 100)} GST` : 'no GST'}>
                   <div className="flex gap-2">
                     {[
                       ['ready', 'Ready / resale'],
