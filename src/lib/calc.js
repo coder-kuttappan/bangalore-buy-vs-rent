@@ -32,12 +32,14 @@ export function simulate(inputs) {
     rentInflationPct,      // annual %
     appreciationPct,       // annual %
     investReturnPct,       // annual % — what the renter's cash earns
+    investFraction = 100,  // % of the monthly surplus actually invested (vs spent)
     horizonYears,
     stampDutyPct,
     registrationPct,
     maintenanceMonthly,    // ₹ owner-paid society maintenance
     propertyTaxAnnual,     // ₹
     sellingCostPct,        // brokerage etc. on eventual sale
+    securityDepositMonths = 0, // months of rent locked as a refundable deposit
   } = inputs
 
   const loan = Math.max(price - downPayment, 0)
@@ -47,10 +49,16 @@ export function simulate(inputs) {
   const monthlyInvestRate = Math.pow(1 + investReturnPct / 100, 1 / 12) - 1
   const monthlyAppreciation = Math.pow(1 + appreciationPct / 100, 1 / 12) - 1
 
+  // the renter's deposit is refundable, but it sits idle earning nothing — so it
+  // comes out of the cash they'd otherwise invest, and is added back (nominal)
+  // in net worth. The lost compounding is the real cost. Held flat at the
+  // starting level (a simplification — in reality it tracks rent on renewal).
+  const deposit = securityDepositMonths * rentMonthly
+
   let loanBalance = loan
   let homeValue = price
   let rent = rentMonthly
-  let renterPortfolio = downPayment + upfrontCosts // cash the buyer spent upfront
+  let renterPortfolio = downPayment + upfrontCosts - deposit // cash invested, deposit set aside
   let buyerPortfolio = 0
   let totalInterest = 0
   let totalRentPaid = 0
@@ -79,10 +87,12 @@ export function simulate(inputs) {
     const renterOutflow = rent
     totalRentPaid += rent
 
-    // whoever spends less invests the difference
+    // whoever spends less invests the difference — but only the share the
+    // household actually puts away rather than absorbs into lifestyle
+    const invested = (investFraction / 100)
     const diff = buyerOutflow - renterOutflow
-    if (diff > 0) renterPortfolio += diff
-    else buyerPortfolio += -diff
+    if (diff > 0) renterPortfolio += diff * invested
+    else buyerPortfolio += -diff * invested
 
     // rent rises once a year
     if (m % 12 === 0) rent *= 1 + rentInflationPct / 100
@@ -98,7 +108,7 @@ export function simulate(inputs) {
     return {
       year: m / 12,
       buyNetWorth: homeValue * (1 - sellingCostPct / 100) - loanBalance + buyerPortfolio,
-      rentNetWorth: renterPortfolio,
+      rentNetWorth: renterPortfolio + deposit,
     }
   }
 
@@ -117,4 +127,34 @@ export function simulate(inputs) {
     verdict: last.buyNetWorth >= last.rentNetWorth ? 'buy' : 'rent',
     margin: Math.abs(last.buyNetWorth - last.rentNetWorth),
   }
+}
+
+// The true break-even — the year buying overtakes renting, found over a long
+// window (default 40yr) so it doesn't depend on the graph's display horizon.
+// Rent keeps inflating and the loan finishes at its tenure inside this window,
+// both of which can push the crossover well past a short comparison period.
+// Returns fractional years, or null if buying never catches up within maxYears.
+export function findBreakEven(inputs, maxYears = 40) {
+  return simulate({ ...inputs, horizonYears: maxYears }).breakEvenYears
+}
+
+// The appreciation rate at which buying and renting end up even at the horizon.
+// Net worth is monotonic in appreciation (more appreciation only helps the
+// buyer), so a binary search finds the crossover. Returns:
+//   - a % number: buying wins above this rate
+//   - 0: buying already wins even at 0% appreciation
+//   - null: renting still wins at the top of the search range (hi)
+export function appreciationTippingPoint(inputs, lo = 0, hi = 30) {
+  const gapAt = (pct) => {
+    const r = simulate({ ...inputs, appreciationPct: pct })
+    return r.buyNetWorthAtHorizon - r.rentNetWorthAtHorizon
+  }
+  if (gapAt(lo) >= 0) return lo
+  if (gapAt(hi) < 0) return null
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2
+    if (gapAt(mid) >= 0) hi = mid
+    else lo = mid
+  }
+  return (lo + hi) / 2
 }
