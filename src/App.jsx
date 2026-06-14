@@ -49,9 +49,9 @@ function SourceLink({ href }) {
 function Field({ label, hint, dirty, onReset, children }) {
   return (
     <label className="block">
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
         <span className="text-sm font-medium text-stone-700">{label}</span>
-        <span className="flex items-baseline gap-1.5">
+        <span className="flex flex-wrap items-baseline gap-1.5">
           {hint && <span className="text-xs text-stone-400">{hint}</span>}
           {dirty && onReset && (
             <button
@@ -274,7 +274,7 @@ export default function App() {
 
       <div className="grid gap-8 lg:grid-cols-[360px_1fr]">
         {/* inputs */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <div className="flex justify-end">
             <button
               type="button"
@@ -619,7 +619,7 @@ export default function App() {
         </div>
 
         {/* results */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <div
             className={`rounded-2xl p-6 text-white shadow-sm ${
               verdictBuy ? 'bg-teal-700' : 'bg-indigo-700'
