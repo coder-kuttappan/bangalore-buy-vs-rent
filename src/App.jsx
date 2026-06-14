@@ -31,12 +31,24 @@ function ConfBadge({ level }) {
   )
 }
 
-function Field({ label, hint, children }) {
+function Field({ label, hint, dirty, onReset, children }) {
   return (
     <label className="block">
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline justify-between gap-2">
         <span className="text-sm font-medium text-stone-700">{label}</span>
-        {hint && <span className="text-xs text-stone-400">{hint}</span>}
+        <span className="flex items-baseline gap-1.5">
+          {hint && <span className="text-xs text-stone-400">{hint}</span>}
+          {dirty && onReset && (
+            <button
+              type="button"
+              title="Reset to our default for this area"
+              onClick={(e) => { e.preventDefault(); onReset() }}
+              className="text-xs text-stone-400 transition hover:text-teal-700"
+            >
+              ↺ reset
+            </button>
+          )}
+        </span>
       </div>
       <div className="mt-1">{children}</div>
     </label>
@@ -89,6 +101,7 @@ export default function App() {
   const [showMethod, setShowMethod] = useState(false)
   const [showLeftOut, setShowLeftOut] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
+  const [showApprNote, setShowApprNote] = useState(false)
   // remembers where the invest-discipline slider was before "It gets spent"
   // zeroed it, so switching back to FD / mutual funds restores that value
   const [prevInvestFraction, setPrevInvestFraction] = useState(DEFAULTS.investFraction)
@@ -111,6 +124,18 @@ export default function App() {
     setPricePerSqft(a.pricePerSqft.mid)
     setRentMonthly(defaultRent(a, bhk))
     setAdv((prev) => ({ ...prev, appreciationPct: a.appreciationPct }))
+  }
+
+  // restore everything to our researched defaults for the current area + size
+  function resetAll() {
+    const a = area
+    const preset = BHK_PRESETS.find((b) => b.label === bhk)
+    setSqft(preset.sqft)
+    setPricePerSqft(a.pricePerSqft.mid)
+    setRentMonthly(defaultRent(a, bhk))
+    setDownPaymentPct(20)
+    setAdv({ ...DEFAULTS, appreciationPct: a.appreciationPct })
+    setPrevInvestFraction(DEFAULTS.investFraction)
   }
 
   function pickReturn(val) {
@@ -235,6 +260,15 @@ export default function App() {
       <div className="grid gap-8 lg:grid-cols-[360px_1fr]">
         {/* inputs */}
         <div className="space-y-4">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={resetAll}
+              className="text-xs text-stone-400 transition hover:text-teal-700"
+            >
+              ↺ Reset to defaults
+            </button>
+          </div>
           <div className="rounded-2xl bg-white p-5 shadow-sm space-y-4">
             <Field label="Area">
               <select
@@ -275,6 +309,8 @@ export default function App() {
 
             <Field
               label="Price per sqft"
+              dirty={pricePerSqft !== area.pricePerSqft.mid}
+              onReset={() => setPricePerSqft(area.pricePerSqft.mid)}
               hint={
                 <span className="inline-flex items-center gap-1.5">
                   range {inr(area.pricePerSqft.low)}–{inr(area.pricePerSqft.high)}{' '}
@@ -305,7 +341,12 @@ export default function App() {
               </div>
             </Field>
 
-            <Field label="Monthly rent for an equivalent home" hint={`typical ${inr(defaultRent(area, bhk))}`}>
+            <Field
+              label="Monthly rent for an equivalent home"
+              hint={`typical ${inr(defaultRent(area, bhk))}`}
+              dirty={rentMonthly !== defaultRent(area, bhk)}
+              onReset={() => setRentMonthly(defaultRent(area, bhk))}
+            >
               <Num value={rentMonthly} onChange={setRentMonthly} step={1000} suffix="₹/mo" />
             </Field>
 
@@ -340,6 +381,8 @@ export default function App() {
 
               <Field
                 label="Property appreciation"
+                dirty={adv.appreciationPct !== area.appreciationPct}
+                onReset={() => setAdv({ ...adv, appreciationPct: area.appreciationPct })}
                 hint={
                   <span className="inline-flex items-center gap-1.5">
                     {area.name} ~{area.appreciationPct}%/yr <ConfBadge level={area.appConfidence} />
@@ -352,6 +395,18 @@ export default function App() {
                   onChange={(v) => setAdv({ ...adv, appreciationPct: v })}
                   suffix="%/yr"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowApprNote(!showApprNote)}
+                  className="mt-1.5 text-xs text-teal-700 hover:underline"
+                >
+                  {showApprNote ? 'Hide' : 'Why this number?'}
+                </button>
+                {showApprNote && (
+                  <p className="mt-1 rounded-lg bg-stone-50 px-3 py-2 text-xs leading-relaxed text-stone-500">
+                    {area.notes} <span className="text-stone-400">({area.appConfidence} confidence)</span>
+                  </p>
+                )}
               </Field>
 
               <Field label="Investment return on the money you don't sink into a home">
