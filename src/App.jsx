@@ -283,12 +283,16 @@ export default function App() {
       label: kind === 'fd' ? `Fixed deposit (${FD_RETURN}%, taxed yearly)` : `Equity funds (${EQUITY_RETURN}%, taxed at sale)`,
       verdict: r.verdict,
       margin: r.margin,
+      breakEven: findBreakEven(toSimInputs({ ...scenario, ...option })),
       active: scenario.investReturnPct === option.investReturnPct
         && scenario.investTaxPct === option.investTaxPct
         && scenario.investExitTaxPct === option.investExitTaxPct,
     }
   })
-  const investmentDecides = byInvestment[0].verdict !== byInvestment[1].verdict
+  // the two differ meaningfully if one never breaks even, or they are 3+ years apart
+  const [beFd, beEquity] = byInvestment.map((o) => o.breakEven)
+  const investmentDecides = (beFd === null) !== (beEquity === null)
+    || (beFd !== null && beEquity !== null && Math.abs(beFd - beEquity) >= 3)
 
   // every area on the user's own settings, for the compare table
   const compareRows = useMemo(() => compareAreas(scenario, simulate, findBreakEven), [scenario])
@@ -380,7 +384,6 @@ export default function App() {
       <Compare
         rows={compareRows}
         bhk={bhk}
-        horizonYears={adv.horizonYears}
         selected={areaName}
         onPick={pickFromCompare}
       />
@@ -902,24 +905,32 @@ export default function App() {
         <div className="min-w-0 space-y-4">
           <div
             className={`rounded-2xl p-6 text-white shadow-sm ${
-              verdictBuy ? 'bg-teal-700' : 'bg-indigo-700'
+              breakEven !== null && breakEven <= adv.horizonYears ? 'bg-teal-700' : 'bg-indigo-700'
             }`}
           >
-            <div className="text-sm uppercase tracking-wide opacity-80">
-              On your assumptions, after {adv.horizonYears} years you're better off
-            </div>
-            <div className="mt-1 text-4xl font-bold">
-              {verdictBuy ? 'Buying' : 'Renting'}
+            <div className="text-sm uppercase tracking-wide opacity-80">On your assumptions</div>
+            <div className="mt-1 text-3xl font-bold leading-tight sm:text-4xl">
+              {breakEven === null
+                ? "Buying doesn't catch up"
+                : breakEven < 0.5
+                ? 'Buying is ahead almost at once'
+                : `Buying pulls ahead after ${years(breakEven)}`}
             </div>
             <div className="mt-2 opacity-90">
-              by <strong>{inr(result.margin)}</strong> in net worth
+              {breakEven === null
+                ? 'Renting leaves you richer for at least 40 years.'
+                : `That is around ${breakEvenYear}. Leave before then and renting would have left you richer.`}
+            </div>
+            <div className="mt-1 text-sm opacity-90">
+              After {adv.horizonYears} years, {verdictBuy ? 'buying' : 'renting'} is ahead by{' '}
+              <strong>{inr(result.margin)}</strong>.
             </div>
             {adv.investFraction > 0 && (
               <div className="mt-4 rounded-xl bg-white/10 p-3 text-sm">
                 <div className="mb-2 text-xs uppercase tracking-wide opacity-80">
                   {investmentDecides
                     ? 'It depends on where your spare money goes'
-                    : 'Same answer wherever your spare money goes'}
+                    : 'Much the same wherever your spare money goes'}
                 </div>
                 <div className="space-y-1.5">
                   {byInvestment.map((o) => (
@@ -933,7 +944,9 @@ export default function App() {
                     >
                       <span>{o.label}</span>
                       <span>
-                        <strong>{o.verdict === 'buy' ? 'Buying' : 'Renting'}</strong> wins by {inr(o.margin)}
+                        {o.breakEven === null
+                          ? <>buying <strong>never catches up</strong></>
+                          : <>buying ahead after <strong>{years(o.breakEven)}</strong></>}
                       </span>
                     </button>
                   ))}
@@ -944,8 +957,9 @@ export default function App() {
               <div>
                 {rangeVerdicts.low === rangeVerdicts.high ? (
                   <>
-                    {rangeVerdicts.low === 'buy' ? 'Buying' : 'Renting'} wins across the whole likely
-                    range of appreciation for {area.name} ({area.appreciationPct}–{area.appreciationListingPct}%).
+                    Over {adv.horizonYears} years, {rangeVerdicts.low === 'buy' ? 'buying' : 'renting'} wins
+                    across the whole likely range of appreciation for {area.name}{' '}
+                    ({area.appreciationPct}–{area.appreciationListingPct}%).
                   </>
                 ) : (
                   <>
@@ -962,7 +976,7 @@ export default function App() {
                   <>Buying wins at any positive appreciation rate.</>
                 ) : (
                   <>
-                    Buying wins if appreciation beats{' '}
+                    Over {adv.horizonYears} years, buying wins if appreciation beats{' '}
                     <strong>{tippingAppreciation.toFixed(1)}%/yr</strong>
                     {' '}— you've assumed {adv.appreciationPct}%.
                   </>
@@ -975,7 +989,7 @@ export default function App() {
                   <>Renting wins at any realistic investment return.</>
                 ) : (
                   <>
-                    Flip it: renting wins if your savings earn more than{' '}
+                    Flip it: over {adv.horizonYears} years renting wins if your savings earn more than{' '}
                     <strong>{tippingInvestReturn.toFixed(1)}%/yr</strong>
                     {' '}— you've assumed {adv.investReturnPct}%.
                   </>
@@ -988,12 +1002,7 @@ export default function App() {
             {[
               ['EMI', inr(result.emi) + '/mo'],
               ['Cash needed upfront', inr(downPayment + result.upfrontCosts)],
-              [
-                'Break-even',
-                breakEven === null
-                  ? 'Beyond 40 yrs'
-                  : `${years(breakEven)} · ${breakEvenYear}`,
-              ],
+              [`Ahead after ${adv.horizonYears} yrs`, `${verdictBuy ? 'Buying' : 'Renting'} +${inr(result.margin)}`],
             ].map(([label, value]) => (
               <div key={label} className="rounded-2xl bg-white p-3 sm:p-4 shadow-sm">
                 <div className="text-[11px] uppercase tracking-wide text-stone-400 sm:text-xs">{label}</div>
@@ -1007,12 +1016,19 @@ export default function App() {
               key={areaName}
               area={areaName}
               bhk={bhk}
-              sqft={sqft}
-              pricePerSqft={pricePerSqft}
-              rentMonthly={rentMonthly}
-              tier={TIERS.map(([t]) => t).find((t) => area.pricePerSqft[t] === pricePerSqft) || null}
+              calcSqft={sqft}
+              calcPrice={pricePerSqft}
+              calcRent={rentMonthly}
               areaStats={quoteStats?.areas?.[areaName] || null}
               minimumToShow={quoteStats?.minimumToShow ?? 5}
+              onApply={(q) => {
+                if (q.pricePerSqft) setPricePerSqft(q.pricePerSqft)
+                if (q.rentMonthly) {
+                  setRentMonthly(q.rentMonthly)
+                  setSecurityDeposit(MARKET.renting.securityDepositMonths * q.rentMonthly)
+                }
+                if (q.sqft) setSqft(q.sqft)
+              }}
               onShared={(result) => {
                 // show the new count straight away rather than waiting for the cached summary
                 if (result?.area) {

@@ -2,12 +2,31 @@ import { useEffect, useState } from 'react'
 import { inrFull } from './lib/format'
 import { quotePayload, sendQuote, suggestProjects, versusMedian } from './lib/quotes'
 
-// Lets someone with a real quote add it to the open dataset. Shows exactly
-// what will be sent before anything is sent.
-export default function ShareQuote({ area, bhk, sqft, pricePerSqft, rentMonthly, tier, areaStats, minimumToShow, onShared }) {
+const TIER_CHOICES = [
+  ['', 'Not sure'],
+  ['low', 'Older or resale flat'],
+  ['mid', 'Typical gated apartment'],
+  ['high', 'Premium builder or new launch'],
+]
+
+const inputClass = `mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-base
+  focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600 sm:text-sm`
+
+// A number typed into a box: '' means "not given", anything else must be a positive number
+const typed = (text) => {
+  const n = Number(text)
+  return text.trim() !== '' && Number.isFinite(n) && n > 0 ? n : null
+}
+
+// Lets someone with a real quote add it to the open dataset. The quote is
+// typed here, not taken from the calculator, so our starting estimates are
+// never sent back to us as if they were real. Shows exactly what will be sent.
+export default function ShareQuote({ area, bhk, calcSqft, calcPrice, calcRent, areaStats, minimumToShow, onApply, onShared }) {
   const [open, setOpen] = useState(false)
-  const [sharePrice, setSharePrice] = useState(true)
-  const [shareRent, setShareRent] = useState(true)
+  const [price, setPrice] = useState('')
+  const [rent, setRent] = useState('')
+  const [sqft, setSqft] = useState(String(calcSqft))
+  const [tier, setTier] = useState('')
   const [projectText, setProjectText] = useState('')
   const [project, setProject] = useState(null) // a pick from the list, with its position
   const [projects, setProjects] = useState(null)
@@ -22,9 +41,14 @@ export default function ShareQuote({ area, bhk, sqft, pricePerSqft, rentMonthly,
       .catch(() => setProjects([]))
   }, [open, projects])
 
+  const pricePerSqft = typed(price)
+  const rentMonthly = typed(rent)
+  const size = typed(sqft)
+  const ready = size !== null && (pricePerSqft !== null || rentMonthly !== null)
   const suggestions = project ? [] : suggestProjects(projects || [], projectText)
   const payload = quotePayload({
-    area, bhk, sqft, pricePerSqft, rentMonthly, tier, sharePrice, shareRent,
+    area, bhk, sqft: size, pricePerSqft, rentMonthly, tier: tier || null,
+    sharePrice: pricePerSqft !== null, shareRent: rentMonthly !== null,
     project: project || { name: projectText },
   })
 
@@ -39,8 +63,10 @@ export default function ShareQuote({ area, bhk, sqft, pricePerSqft, rentMonthly,
     }
   }
 
-  const priceVs = areaStats?.medianPricePerSqft ? versusMedian(pricePerSqft, areaStats.medianPricePerSqft) : null
-  const rentVs = areaStats?.medianRentPerSqft ? versusMedian(rentMonthly / sqft, areaStats.medianRentPerSqft) : null
+  const priceVs = areaStats?.medianPricePerSqft ? versusMedian(pricePerSqft ?? calcPrice, areaStats.medianPricePerSqft) : null
+  const rentVs = areaStats?.medianRentPerSqft
+    ? versusMedian((rentMonthly ?? calcRent) / (size ?? calcSqft), areaStats.medianRentPerSqft)
+    : null
 
   return (
     <div className="rounded-2xl bg-white p-5 shadow-sm">
@@ -57,7 +83,7 @@ export default function ShareQuote({ area, bhk, sqft, pricePerSqft, rentMonthly,
         className="flex w-full items-center justify-between text-left text-sm font-medium text-stone-700"
       >
         <span>
-          Have a real quote? Add it to the open dataset
+          Have a real quote for {area}? Add it to the open dataset
           <span className="block text-xs font-normal text-stone-400">
             Anonymous. It helps the next person see what flats here really cost.
           </span>
@@ -67,16 +93,40 @@ export default function ShareQuote({ area, bhk, sqft, pricePerSqft, rentMonthly,
 
       {open && state.status !== 'done' && (
         <div className="mt-4 space-y-3 text-sm">
-          <div className="space-y-1.5">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={sharePrice} onChange={(e) => setSharePrice(e.target.checked)} className="accent-teal-700" />
-              <span>The price is a real quote: <strong>{inrFull(pricePerSqft)}/sqft</strong></span>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block text-stone-700">
+              Price you were quoted
+              <input type="number" inputMode="numeric" min="0" value={price} placeholder="₹ per sqft"
+                onChange={(e) => setPrice(e.target.value)} className={inputClass} />
             </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={shareRent} onChange={(e) => setShareRent(e.target.checked)} className="accent-teal-700" />
-              <span>The rent is a real quote: <strong>{inrFull(rentMonthly)}/month</strong></span>
+            <label className="block text-stone-700">
+              Rent you were quoted
+              <input type="number" inputMode="numeric" min="0" value={rent} placeholder="₹ per month"
+                onChange={(e) => setRent(e.target.value)} className={inputClass} />
+            </label>
+            <label className="block text-stone-700">
+              Flat size ({bhk})
+              <input type="number" inputMode="numeric" min="0" value={sqft} placeholder="sqft"
+                onChange={(e) => setSqft(e.target.value)} className={inputClass} />
+            </label>
+            <label className="block text-stone-700">
+              Kind of flat
+              <select value={tier} onChange={(e) => setTier(e.target.value)} className={inputClass}>
+                {TIER_CHOICES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
             </label>
           </div>
+          <p className="text-xs text-stone-400">
+            Fill in the price, the rent, or both — whichever you have a real figure for.{' '}
+            <button
+              type="button"
+              onClick={() => { setPrice(String(calcPrice)); setRent(String(calcRent)); setSqft(String(calcSqft)) }}
+              className="text-teal-700 underline decoration-dotted"
+            >
+              Copy the numbers from the calculator
+            </button>{' '}
+            if you already typed your quote there.
+          </p>
 
           <div className="relative">
             <label className="block text-stone-700">
@@ -87,8 +137,7 @@ export default function ShareQuote({ area, bhk, sqft, pricePerSqft, rentMonthly,
                 maxLength={80}
                 placeholder="Start typing a name"
                 onChange={(e) => { setProjectText(e.target.value); setProject(null) }}
-                className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-base
-                           focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600 sm:text-sm"
+                className={inputClass}
               />
             </label>
             {suggestions.length > 0 && (
@@ -117,11 +166,16 @@ export default function ShareQuote({ area, bhk, sqft, pricePerSqft, rentMonthly,
           <div className="rounded-lg bg-stone-50 px-3 py-2 text-xs text-stone-500">
             <div className="font-medium text-stone-700">Exactly what will be sent</div>
             <div className="mt-1">
-              {payload.area} · {payload.bhk} · {payload.sqft} sqft
-              {payload.pricePerSqft !== undefined && <> · {inrFull(payload.pricePerSqft)}/sqft</>}
-              {payload.rentMonthly !== undefined && <> · rent {inrFull(payload.rentMonthly)}</>}
-              {payload.project && <> · {payload.project.name}</>}
-              {' '}· this month
+              {ready ? (
+                <>
+                  {payload.area} · {payload.bhk} · {payload.sqft} sqft
+                  {payload.pricePerSqft !== undefined && <> · {inrFull(payload.pricePerSqft)}/sqft</>}
+                  {payload.rentMonthly !== undefined && <> · rent {inrFull(payload.rentMonthly)}</>}
+                  {payload.tier && <> · {TIER_CHOICES.find(([v]) => v === payload.tier)[1].toLowerCase()}</>}
+                  {payload.project && <> · {payload.project.name}</>}
+                  {' '}· this month
+                </>
+              ) : 'Nothing yet — enter a price or a rent above.'}
             </div>
             <div className="mt-1">
               Not sent: your salary, tax, down payment, loan or anything that identifies you. We
@@ -130,14 +184,25 @@ export default function ShareQuote({ area, bhk, sqft, pricePerSqft, rentMonthly,
           </div>
 
           {state.status === 'error' && <p className="text-xs text-rose-600">{state.message}</p>}
-          <button
-            type="button"
-            onClick={submit}
-            disabled={state.status === 'sending' || (!sharePrice && !shareRent)}
-            className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-teal-800 disabled:opacity-50"
-          >
-            {state.status === 'sending' ? 'Sending…' : 'Add my quote'}
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!ready || state.status === 'sending'}
+              className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-teal-800 disabled:opacity-50"
+            >
+              {state.status === 'sending' ? 'Sending…' : 'Add my quote'}
+            </button>
+            {ready && (
+              <button
+                type="button"
+                onClick={() => onApply?.({ pricePerSqft, rentMonthly, sqft: size })}
+                className="text-sm text-teal-700 underline decoration-dotted"
+              >
+                Use these numbers in the calculator
+              </button>
+            )}
+          </div>
         </div>
       )}
 
