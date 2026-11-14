@@ -904,7 +904,7 @@ export default function App() {
                 </p>
                 <p>
                   <strong className="text-stone-700">Prices</strong> come from listing
-                  aggregators (a listing portal, a property portal, a rate-trends site), which run 10–30% above
+                  portals and public market reports, which run 10–30% above
                   registered transaction values. The mid leans toward a realistic deal
                   price but still carries listing bias. Use <em>Discount off the asking
                   price</em> to model what you expect to actually pay.

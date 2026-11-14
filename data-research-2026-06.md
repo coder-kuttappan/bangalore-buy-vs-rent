@@ -1,7 +1,7 @@
 # Bangalore Pricing Research — June 2026
 
-Source data behind `src/data/areas.js`. Researched 2026-06-12 via listing
-aggregators, crowdsourced rent data, and builder pages.
+Source data behind `src/data/areas.js`. Researched 2026-06-12 from public property listings, crowdsourced rent
+data and published market reports, cross-checked against each other.
 
 ## Buy & Rent Table
 
@@ -38,26 +38,24 @@ aggregators, crowdsourced rent data, and builder pages.
    ~₹7,450 registry average. Mids lean toward deal prices but carry upward bias.
 2. **Aggregator YoY figures (13–37%) are mix-distortion**, not real
    appreciation — driven by luxury launch composition (e.g. Hebbal "+36.9%").
-3. **2BHK rent mids are the strongest numbers** — anchored on a crowdsourced rent dataset
-   (crowdsourced from 3,800+ actual renters). 3BHK mids are partly derived from
+3. **2BHK rent mids are the strongest numbers** — anchored on a crowdsourced dataset of
+   several thousand actual renters. 3BHK mids are partly derived from
    2BHK ratios — weakest numbers in the table.
 
 ## Sources
 
-- a listing portal locality rate pages (all 8 areas): a listing portal
-- a crowdsourced rent dataset — crowdsourced rent medians
-- a rate-trends site — Whitefield, HSR, Yelahanka rate trends
-- a market report — Sarjapur Road 2026 prices
-- a bank rate page / a rate-comparison site / a tax-reference site — loan rates
-- igr.karnataka.gov.in + a tax-reference site — stamp duty & registration
-- a property-news site / a legal-reference site — registration fee doubling (Aug 2025)
-- a rental portal / a market report / a builder report — appreciation history
+- Public property listings and locality price-trend summaries
+- Crowdsourced rent data
+- Published market and builder reports
+- Bank and tax-reference pages for loan rates, stamp duty and registration
+- Karnataka government registration department for statutory charges
+
 
 ## v2 pass (June 2026) — per-area appreciation + segment-matched rents
 
 ### Method
-- **Appreciation:** pulled a property portal/a listing portal "% change over last 10yr" listing figures → CAGR, then haircut ~3pp for the two known distortions (listing > registry, luxury-launch mix). Citywide sanity anchor: BLR ~flat 2015–19 (~2–3%/yr), boom 2020–25 (~13%/yr, ₹4,700→₹8,720/sqft) → ~7.5–8% real 10yr blend. Raw listing CAGRs averaged ~11%, confirming the ~3pp overstatement. Per-area haircut weighted by supply pressure + how peaked the market is.
-- **Rents (rentNew):** gross-yield model on the v1 new-build price mids (2BHK 1150sqft, 3BHK 1650sqft). New gated stock yields ~3.2–3.5% in premium cores up to ~4.5% in affordable belts. Cross-checked vs confirmed listings (Sobha Windsor Whitefield 3BHK ₹70k; HSR new gated 2BHK ₹41–43k+maint).
+- **Appreciation:** took published "% change over last 10yr" listing-price figures → CAGR, then haircut ~3pp for the two known distortions (listing > registry, luxury-launch mix). Citywide sanity anchor: BLR ~flat 2015–19 (~2–3%/yr), boom 2020–25 (~13%/yr, ₹4,700→₹8,720/sqft) → ~7.5–8% real 10yr blend. Raw listing CAGRs averaged ~11%, confirming the ~3pp overstatement. Per-area haircut weighted by supply pressure + how peaked the market is.
+- **Rents (rentNew):** gross-yield model on the v1 new-build price mids (2BHK 1150sqft, 3BHK 1650sqft). New gated stock yields ~3.2–3.5% in premium cores up to ~4.5% in affordable belts. Cross-checked vs confirmed listings (a premium Whitefield gated 3BHK at ₹70k; HSR new gated 2BHK ₹41–43k+maint).
 
 ### Raw listing CAGR → final (haircut)
 Whitefield 12.3→8 · HSR 12.4→9 · Koramangala 7.1→7 · Sarjapur 11.2→9 · Indiranagar 10.3→7 · Hebbal 13.9→8 (most distorted, low conf) · Yelahanka 9.5→8 · E-City 6.9→6.5
@@ -68,20 +66,19 @@ Whitefield 12.3→8 · HSR 12.4→9 · Koramangala 7.1→7 · Sarjapur 11.2→9 
 - rentNew is yield-derived, not transaction-sampled — internally consistent with the price column by construction (the fix), confident where new gated supply is deep (Whitefield, Sarjapur, HSR), softest in Indiranagar (genuine new gated stock barely exists there).
 
 ### v2 sources
-- a property portal locality overviews (HSR, Sarjapur) — 10yr % change
-- a listing portal price-trends pages (Hebbal, Yelahanka, Electronic City)
-- a builder report — Whitefield decade trends; a builder report — citywide price trends
-- a listing portal / a builder report — Whitefield & HSR new-gated rental listings
+
+- Public listing-price trend summaries and rental listings, as above
+
 
 ## v2.1 pass (June 2026) — 12 more areas (8 → 20 total)
 
-Areas added: Horamavu, Thanisandra, Kalyan Nagar, Hennur, Banaswadi, Kadugodi, Varthur, Bannerghatta Road, JP Nagar, Devanahalli, Tumkur Road, KR Puram. Same method as v2 (listing 10yr CAGR haircut ~3pp toward ~8% citywide blend; rentNew yield-derived off price mid). Citywide rent anchor: ₹36k 2BHK / ₹62k 3BHK (a crowdsourced rent dataset).
+Areas added: Horamavu, Thanisandra, Kalyan Nagar, Hennur, Banaswadi, Kadugodi, Varthur, Bannerghatta Road, JP Nagar, Devanahalli, Tumkur Road, KR Puram. Same method as v2 (listing 10yr CAGR haircut ~3pp toward ~8% citywide blend; rentNew yield-derived off price mid). Citywide rent anchor: ₹36k 2BHK / ₹62k 3BHK (crowdsourced rent data).
 
 ### Raw listing CAGR → final appreciation (haircut)
 Horamavu 6.0→6.5 · Thanisandra 9.0→8 · Kalyan Nagar 5.8→7 · Hennur 7.8→8 · Banaswadi 7.0→7 · Kadugodi 9.7→8.5 · Varthur 13.1→8.5 (most distorted) · Bannerghatta 8.4→8.5 · JP Nagar 8.1→7.5 · Devanahalli 14.6(5yr)→7 · Tumkur Rd 15.7→8 · KR Puram 8.4→8
 
 ### Weakest rows (low confidence — verify before trusting)
-- **Tumkur Road** — a listing portal ₹17,900 avg is inner-Yeshwanthpur luxury, unrepresentative; mid set to ₹9,000 (broader corridor trades ₹7–11k). Low price confidence.
+- **Tumkur Road** — the ₹17,900 portal average is inner-Yeshwanthpur luxury, unrepresentative; mid set to ₹9,000 (broader corridor trades ₹7–11k). Low price confidence.
 - **Devanahalli** — plotted-land/under-construction airport play, thin apartment rental market (~3% yield); both appreciation and rentNew are softest in the set.
 - **Varthur** — 243% 10yr listing gain heavily mix-distorted; low appreciation confidence.
 
@@ -91,8 +88,9 @@ Horamavu 6.0→6.5 · Thanisandra 9.0→8 · Kalyan Nagar 5.8→7 · Hennur 7.8�
 - rentNew most reliable where new gated supply is deep (Thanisandra, Hennur, Kadugodi, KR Puram); softest in low-new-supply pockets (Kalyan Nagar, Banaswadi, JP Nagar).
 
 ### v2.1 sources
-- a listing portal locality rate pages (all 12, June 2026 snapshots)
-- a rental portal / a property portal / classifieds rent listings; a crowdsourced rent dataset median anchor
+
+- Same source types as v2, June 2026 snapshots
+
 
 ## v3 pass (November 2026) — appreciation anchored on the RBI House Price Index
 
