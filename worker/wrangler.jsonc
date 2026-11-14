@@ -12,7 +12,7 @@
       "binding": "DB",
       "database_name": "buyvsrent-quotes",
       // filled in when the database is created: npx wrangler d1 create buyvsrent-quotes
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      "database_id": "c96a67a8-f540-40bf-936f-c9d6092490a9"
     }
   ]
   // HASH_SALT is a secret, set once with: npx wrangler secret put HASH_SALT
