@@ -79,11 +79,16 @@ export const DEFAULTS = {
   propertyTaxAnnual: Math.round(DEFAULT_SQFT * MARKET.recurring.propertyTaxPerSqftAnnual),
   maintenancePerSqftMonthly: MARKET.recurring.maintenancePerSqftMonthly,
   propertyTaxPerSqftAnnual: MARKET.recurring.propertyTaxPerSqftAnnual,
+  costInflationPct: MARKET.recurring.costInflationPct,
   // renting (from market) — deposit is top-level state (₹), defaulted from months
   rentInflationPct: MARKET.renting.rentInflationPct,
   // income tax (from market)
-  claimTaxBenefit: true, // Sec 24b — old tax regime; New regime = false
+  claimTaxBenefit: MARKET.tax.defaultRegime === 'old', // old regime: 24b for the buyer, HRA for the renter
   marginalTaxPct: MARKET.tax.defaultMarginalPct,
+  basicSalaryAnnual: MARKET.tax.defaultBasicSalaryAnnual, // only used under the old regime (HRA)
+  // FD interest is taxed at slab each year, so the default 7% FD nets ~4.9%.
+  // Equity gains are taxed at sale instead — not modelled yet, so that preset sets 0.
+  investTaxPct: MARKET.tax.defaultMarginalPct,
 }
 
 // What kind of stock the price (and matched rent) defaults describe. Most areas

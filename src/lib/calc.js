@@ -45,6 +45,11 @@ export function simulate(inputs) {
     claimTaxBenefit = false, // Sec 24b interest deduction (old regime only)
     marginalTaxPct = 0,    // buyer's income-tax slab, for the 24b benefit
     interestDeductionCap = 200000, // annual cap on deductible loan interest (Sec 24b)
+    costInflationPct = 0,  // annual % rise in maintenance + property tax
+    investTaxPct = 0,      // % of each year's investment return lost to income tax
+                           // (FD interest is taxed at slab); applies to BOTH portfolios
+    basicSalaryAnnual = 0, // ₹ — enables the renter's HRA exemption (old regime only)
+    hraCapPctOfBasic = 50, // HRA exemption ceiling as % of basic (metro rule)
   } = inputs
 
   const loan = Math.max(price - downPayment, 0)
@@ -53,7 +58,9 @@ export function simulate(inputs) {
   // one-time interiors. The renter avoids all of it and keeps it invested.
   const upfrontCosts = price * (stampDutyPct + registrationPct + gstPct) / 100 + interiorsCost
   const monthlyLoanRate = loanRatePct / 100 / 12
-  const monthlyInvestRate = Math.pow(1 + investReturnPct / 100, 1 / 12) - 1
+  // returns are taxed as they accrue, so both sides compound at the post-tax rate
+  const netInvestReturnPct = investReturnPct * (1 - investTaxPct / 100)
+  const monthlyInvestRate = Math.pow(1 + netInvestReturnPct / 100, 1 / 12) - 1
   const monthlyAppreciation = Math.pow(1 + appreciationPct / 100, 1 / 12) - 1
 
   // the renter's deposit is refundable, but it sits idle earning nothing — so it
@@ -65,6 +72,9 @@ export function simulate(inputs) {
   let loanBalance = loan
   let homeValue = price
   let rent = rentMonthly
+  let maintenance = maintenanceMonthly
+  let propertyTax = propertyTaxAnnual
+  let yearRent = 0       // rent paid in the current year, for the HRA exemption
   let renterPortfolio = downPayment + upfrontCosts - deposit // cash invested, deposit set aside
   let buyerPortfolio = 0
   let totalInterest = 0
@@ -92,9 +102,10 @@ export function simulate(inputs) {
       emiThisMonth = interest + principalPaid
     }
 
-    const buyerOutflow = emiThisMonth + maintenanceMonthly + propertyTaxAnnual / 12
+    const buyerOutflow = emiThisMonth + maintenance + propertyTax / 12
     const renterOutflow = rent
     totalRentPaid += rent
+    yearRent += rent
 
     // whoever spends less invests the difference — but only the share the
     // household actually puts away rather than absorbs into lifestyle
@@ -103,16 +114,31 @@ export function simulate(inputs) {
     if (diff > 0) renterPortfolio += diff * invested
     else buyerPortfolio += -diff * invested
 
-    // year-end: Sec 24b refund (capped at ₹2L interest) goes into the buyer's
-    // pocket — modelled as money they invest. Then reset the yearly counter and
-    // step rent up.
+    // year-end, old regime only: each side's income-tax saving goes into its
+    // own pocket — modelled as money they invest.
+    //   buyer:  Sec 24b refund on loan interest (capped at ₹2L)
+    //   renter: HRA exemption = least of HRA received, rent − 10% of basic, and
+    //           the cap % of basic. HRA received is assumed to equal the cap
+    //           (the usual salary structure), and basic is held flat.
+    // A buyer living in their own home gets no HRA; a renter gets no 24b.
+    // Then reset the yearly counters and step rent and ownership costs up.
     if (m % 12 === 0) {
       if (claimTaxBenefit) {
         const deductible = Math.min(yearInterest, interestDeductionCap)
         buyerPortfolio += deductible * (marginalTaxPct / 100)
+        if (basicSalaryAnnual > 0) {
+          const hraExempt = Math.max(0, Math.min(
+            yearRent - 0.1 * basicSalaryAnnual,
+            basicSalaryAnnual * hraCapPctOfBasic / 100,
+          ))
+          renterPortfolio += hraExempt * (marginalTaxPct / 100)
+        }
       }
       yearInterest = 0
+      yearRent = 0
       rent *= 1 + rentInflationPct / 100
+      maintenance *= 1 + costInflationPct / 100
+      propertyTax *= 1 + costInflationPct / 100
     }
 
     const snap = snapshot(m)

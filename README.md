@@ -13,7 +13,9 @@ Most buy-vs-rent calculators hardcode a single appreciation number and ignore ta
 - **Invest-discipline slider:** models the truth that the renter only wins if they actually invest the gap (an EMI is forced savings; most people don't invest the difference).
 - **True break-even** (window-independent) with the calendar year it lands in.
 - **Tipping-point insights:** the appreciation rate above which buying wins, and the investment return above which renting wins.
-- **Costs & tax modelled:** stamp duty, registration, GST on under-construction, interiors, and the Section 24b interest deduction (old vs new regime).
+- **Costs modelled:** stamp duty, registration, GST on under-construction, interiors, and maintenance and property tax that rise each year.
+- **Tax applied to both sides:** under the old regime the buyer gets the Section 24b interest deduction and the renter gets the HRA exemption; under the new regime (the default) neither does. FD interest is taxed at slab for whoever is saving.
+- **Shareable links:** the address bar always holds a link to exactly the scenario on screen. It lives in the URL fragment, which browsers never send to a server.
 - **"What this leaves out":** the calculator names its own remaining blind spots (LTCG, illiquidity, floating rates, volatility) on purpose.
 
 ## Methodology, in short
@@ -28,11 +30,18 @@ All India-specific policy (costs, tax, norms) lives in [`src/markets/india.js`](
 npm install
 npm run dev      # http://localhost:5173
 npm run build    # production build to dist/
+npm test         # engine and share-link tests (Node's built-in runner, no extra installs)
 ```
+
+Tests run before every deploy; a failing test stops the site from updating.
 
 ## Stack
 
 React + Vite + Tailwind v4 + Recharts. Fully client-side — no backend, no tracking, no data leaves your browser.
+
+## Licence
+
+[MIT](./LICENSE). Use it, fork it, adapt it for your own city.
 
 ## Disclaimer
 

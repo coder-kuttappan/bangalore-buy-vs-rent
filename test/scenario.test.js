@@ -1,0 +1,59 @@
+// Tests for scenario defaults and shareable links.
+
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { defaultsFor, encodeScenario, decodeScenario } from '../src/lib/scenario.js'
+import { AREAS, BHK_PRESETS } from '../src/data/areas.js'
+
+test('the default scenario needs no link at all', () => {
+  assert.equal(encodeScenario(defaultsFor()), '')
+  assert.equal(decodeScenario(''), null)
+  assert.equal(decodeScenario('#'), null)
+})
+
+test('every area and size survives a round trip through a link', () => {
+  for (const area of AREAS) {
+    for (const { label } of BHK_PRESETS) {
+      const s = defaultsFor(area.name, label)
+      const link = encodeScenario(s)
+      if (link) assert.deepEqual(decodeScenario('#' + link), s)
+    }
+  }
+})
+
+test('a customised scenario survives a round trip', () => {
+  const s = {
+    ...defaultsFor('HSR Layout', '3 BHK', 1800),
+    pricePerSqft: 14250, rentMonthly: 80000, securityDeposit: 300000, downPaymentPct: 35,
+    appreciationPct: 6.5, investReturnPct: 11, investTaxPct: 0, investFraction: 60,
+    horizonYears: 15, loanRatePct: 8.4, propertyType: 'under-construction',
+    claimTaxBenefit: true, marginalTaxPct: 20, basicSalaryAnnual: 2000000,
+    maintenanceMonthly: 9000, interiorsBudget: 2500000, costInflationPct: 6,
+  }
+  assert.deepEqual(decodeScenario('#' + encodeScenario(s)), s)
+})
+
+test('links only carry what differs from the defaults', () => {
+  const s = { ...defaultsFor('Koramangala'), rentMonthly: 65000 }
+  assert.equal(encodeScenario(s), 'a=Koramangala&r=65000')
+})
+
+test('a custom size carries its matching upkeep costs without spelling them out', () => {
+  const s = defaultsFor('Whitefield', '2 BHK', 1400)
+  assert.equal(encodeScenario(s), 's=1400')
+  assert.equal(decodeScenario('#s=1400').maintenanceMonthly, s.maintenanceMonthly)
+})
+
+test('a mangled or hostile link falls back to safe values', () => {
+  const d = defaultsFor()
+  const s = decodeScenario('#a=<script>&b=9&p=abc&r=-5&h=1e99&uc=7&old=maybe&dp=')
+  assert.equal(s.area, d.area)
+  assert.equal(s.bhk, d.bhk)
+  assert.equal(s.pricePerSqft, d.pricePerSqft)
+  assert.equal(s.rentMonthly, d.rentMonthly)
+  assert.equal(s.horizonYears, d.horizonYears)
+  assert.equal(s.propertyType, d.propertyType)
+  assert.equal(s.claimTaxBenefit, d.claimTaxBenefit)
+  assert.equal(s.downPaymentPct, d.downPaymentPct)
+  assert.equal(decodeScenario('#utm_source=whatever'), null)
+})

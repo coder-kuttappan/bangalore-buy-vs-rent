@@ -9,13 +9,13 @@ import {
 import { inr, inrFull, years } from './lib/format'
 import { AREAS, BHK_PRESETS, DEFAULTS, DATA_ASOF } from './data/areas'
 import { MARKET } from './markets/india'
+import {
+  defaultRent, defaultsFor, sizeCosts, encodeScenario, decodeScenario, toSimInputs,
+} from './lib/scenario'
 
-function defaultRent(area, bhkLabel) {
-  // rentNew = rent for the same new-gated segment the price describes, so the
-  // buy and rent sides compare like-for-like (not new-flat price vs old-flat rent)
-  if (bhkLabel === '1 BHK') return Math.round(area.rentNew['2 BHK'] * 0.7 / 500) * 500
-  return area.rentNew[bhkLabel]
-}
+// the "advanced" slice of a scenario — everything held in the adv state object
+const advFrom = (scenario) =>
+  Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, scenario[k]]))
 
 function ConfBadge({ level }) {
   const tone =
@@ -101,19 +101,27 @@ function Num({ value, onChange, step = 1, min = 0, suffix }) {
   )
 }
 
+const FD_RETURN = 7
+const EQUITY_RETURN = 11
+
 export default function App() {
-  const [areaName, setAreaName] = useState('Whitefield')
-  const [bhk, setBhk] = useState('2 BHK')
-  const [sqft, setSqft] = useState(1150)
+  // start from a shared link if the URL carries one, else our defaults
+  const [initial] = useState(() => {
+    let shared = null
+    try { shared = decodeScenario(window.location.hash) } catch { /* fall back to defaults */ }
+    return shared || defaultsFor()
+  })
+  const [areaName, setAreaName] = useState(initial.area)
+  const [bhk, setBhk] = useState(initial.bhk)
+  const [sqft, setSqftRaw] = useState(initial.sqft)
   const area = AREAS.find((a) => a.name === areaName)
 
-  const [pricePerSqft, setPricePerSqft] = useState(area.pricePerSqft.mid)
-  const [rentMonthly, setRentMonthly] = useState(defaultRent(area, '2 BHK'))
-  const [securityDeposit, setSecurityDeposit] = useState(
-    () => MARKET.renting.securityDepositMonths * defaultRent(area, '2 BHK'),
-  )
-  const [downPaymentPct, setDownPaymentPct] = useState(20)
-  const [adv, setAdv] = useState({ ...DEFAULTS, appreciationPct: area.appreciationPct })
+  const [pricePerSqft, setPricePerSqft] = useState(initial.pricePerSqft)
+  const [rentMonthly, setRentMonthly] = useState(initial.rentMonthly)
+  const [securityDeposit, setSecurityDeposit] = useState(initial.securityDeposit)
+  const [downPaymentPct, setDownPaymentPct] = useState(initial.downPaymentPct)
+  const [adv, setAdv] = useState(() => advFrom(initial))
+  const [copied, setCopied] = useState(false)
   const [showAdv, setShowAdv] = useState(false)
   const [showCosts, setShowCosts] = useState(false)
   const [showMethod, setShowMethod] = useState(false)
@@ -127,14 +135,34 @@ export default function App() {
   const price = pricePerSqft * sqft
   const downPayment = price * downPaymentPct / 100
 
-  // maintenance and property tax track flat size — recompute whenever sqft changes
+  // maintenance and property tax track flat size — recompute when the size changes
+  function setSqft(v) {
+    setSqftRaw(v)
+    setAdv((prev) => ({ ...prev, ...sizeCosts(v) }))
+  }
+
+  // load a whole scenario at once (reset, or a shared link pasted into this tab)
+  function applyScenario(d) {
+    setAreaName(d.area)
+    setBhk(d.bhk)
+    setSqftRaw(d.sqft)
+    setPricePerSqft(d.pricePerSqft)
+    setRentMonthly(d.rentMonthly)
+    setSecurityDeposit(d.securityDeposit)
+    setDownPaymentPct(d.downPaymentPct)
+    setAdv(advFrom(d))
+  }
+
+  // a shared link pasted into an already-open tab only changes the fragment,
+  // which doesn't reload the page — so listen for it and load that scenario
   useEffect(() => {
-    setAdv((prev) => ({
-      ...prev,
-      maintenanceMonthly: Math.round(sqft * DEFAULTS.maintenancePerSqftMonthly),
-      propertyTaxAnnual: Math.round(sqft * DEFAULTS.propertyTaxPerSqftAnnual),
-    }))
-  }, [sqft])
+    const onHashChange = () => {
+      const shared = decodeScenario(window.location.hash)
+      if (shared) applyScenario(shared)
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
 
   function pickArea(name) {
     const a = AREAS.find((x) => x.name === name)
@@ -148,15 +176,7 @@ export default function App() {
 
   // restore everything to our researched defaults for the current area + size
   function resetAll() {
-    const a = area
-    const preset = BHK_PRESETS.find((b) => b.label === bhk)
-    const rent = defaultRent(a, bhk)
-    setSqft(preset.sqft)
-    setPricePerSqft(a.pricePerSqft.mid)
-    setRentMonthly(rent)
-    setSecurityDeposit(MARKET.renting.securityDepositMonths * rent)
-    setDownPaymentPct(20)
-    setAdv({ ...DEFAULTS, appreciationPct: a.appreciationPct })
+    applyScenario(defaultsFor(area.name, bhk))
     setPrevInvestFraction(DEFAULTS.investFraction)
   }
 
@@ -164,13 +184,15 @@ export default function App() {
     if (val === 0) {
       // "it gets spent" — stash the current slider position, then zero it
       if (adv.investFraction > 0) setPrevInvestFraction(adv.investFraction)
-      setAdv({ ...adv, investReturnPct: 0, investFraction: 0 })
+      setAdv({ ...adv, investReturnPct: 0, investTaxPct: 0, investFraction: 0 })
     } else {
       // FD / mutual funds — if the slider was zeroed by "spent", restore it;
-      // otherwise leave whatever the user has dialed in
+      // otherwise leave whatever the user has dialed in. FD interest is taxed
+      // at slab every year; equity is taxed at sale, which isn't modelled yet.
       setAdv({
         ...adv,
         investReturnPct: val,
+        investTaxPct: val === FD_RETURN ? adv.marginalTaxPct : 0,
         investFraction: adv.investFraction === 0 ? prevInvestFraction : adv.investFraction,
       })
     }
@@ -185,34 +207,42 @@ export default function App() {
     setSecurityDeposit(MARKET.renting.securityDepositMonths * rent)
   }
 
-  const simInputs = useMemo(
+  // the whole scenario as one object — feeds the engine and the shareable link
+  const scenario = useMemo(
     () => ({
-      price,
-      downPayment,
-      loanRatePct: adv.loanRatePct,
-      tenureYears: adv.tenureYears,
-      rentMonthly,
-      rentInflationPct: adv.rentInflationPct,
-      appreciationPct: adv.appreciationPct,
-      investReturnPct: adv.investReturnPct,
-      investFraction: adv.investFraction,
-      horizonYears: adv.horizonYears,
-      stampDutyPct: adv.stampDutyPct,
-      registrationPct: adv.registrationPct,
-      maintenanceMonthly: adv.maintenanceMonthly,
-      propertyTaxAnnual: adv.propertyTaxAnnual,
-      sellingCostPct: adv.sellingCostPct,
-      securityDeposit,
-      gstPct: adv.propertyType === 'under-construction'
-        ? MARKET.cost.gstPct.underConstruction
-        : MARKET.cost.gstPct.ready,
-      interiorsCost: adv.interiorsBudget,
-      claimTaxBenefit: adv.claimTaxBenefit,
-      marginalTaxPct: adv.marginalTaxPct,
-      interestDeductionCap: MARKET.tax.homeLoanInterestCap,
+      ...adv, area: areaName, bhk, sqft, pricePerSqft, rentMonthly, securityDeposit, downPaymentPct,
     }),
-    [price, downPayment, rentMonthly, securityDeposit, sqft, adv],
+    [adv, areaName, bhk, sqft, pricePerSqft, rentMonthly, securityDeposit, downPaymentPct],
   )
+  const simInputs = useMemo(() => toSimInputs(scenario), [scenario])
+
+  // keep the address bar in step with the scenario, so the URL is always a
+  // link to exactly what's on screen. It lives in the fragment (#...), which
+  // browsers never send to a server.
+  useEffect(() => {
+    const encoded = encodeScenario(scenario)
+    const url = window.location.pathname + window.location.search + (encoded ? `#${encoded}` : '')
+    // Safari throws if this is called too often (e.g. while dragging a slider);
+    // a missed update is harmless, the next change writes the link again
+    try { window.history.replaceState(null, '', url) } catch { /* ignore */ }
+  }, [scenario])
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch { /* clipboard blocked — the address bar already holds the link */ }
+  }
+
+  // changing the slab moves the tax on returns with it while the two are linked
+  function setSlab(v) {
+    setAdv({
+      ...adv,
+      marginalTaxPct: v,
+      investTaxPct: adv.investTaxPct === adv.marginalTaxPct ? v : adv.investTaxPct,
+    })
+  }
 
   const result = useMemo(() => simulate(simInputs), [simInputs])
   const verdictBuy = result.verdict === 'buy'
@@ -291,13 +321,23 @@ export default function App() {
               <span className="text-xs font-semibold uppercase tracking-wide text-stone-400">
                 Your scenario
               </span>
-              <button
-                type="button"
-                onClick={resetAll}
-                className="text-xs text-stone-400 transition hover:text-teal-700"
-              >
-                ↺ Reset to defaults
-              </button>
+              <span className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={copyLink}
+                  title="Copy a link to exactly this scenario"
+                  className="text-xs text-stone-400 transition hover:text-teal-700"
+                >
+                  {copied ? '✓ Link copied' : '🔗 Copy link'}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetAll}
+                  className="text-xs text-stone-400 transition hover:text-teal-700"
+                >
+                  ↺ Reset to defaults
+                </button>
+              </span>
             </div>
             <Field label="Area">
               <select
@@ -455,8 +495,8 @@ export default function App() {
                 />
                 <div className="mt-2 flex gap-2">
                   {[
-                    ['FD', 7],
-                    ['Mutual funds', 11],
+                    ['FD', FD_RETURN],
+                    ['Mutual funds', EQUITY_RETURN],
                     ['It gets spent', 0],
                   ].map(([label, val]) => (
                     <button
@@ -472,6 +512,25 @@ export default function App() {
                     </button>
                   ))}
                 </div>
+                {adv.investReturnPct > 0 && (
+                  <div className="mt-3">
+                    <Field
+                      label="Tax on those returns"
+                      hint={`${(adv.investReturnPct * (1 - adv.investTaxPct / 100)).toFixed(1)}% after tax`}
+                    >
+                      <Num
+                        value={adv.investTaxPct}
+                        step={5}
+                        onChange={(v) => setAdv({ ...adv, investTaxPct: Math.min(v, 100) })}
+                        suffix="%"
+                      />
+                    </Field>
+                    <p className="mt-1 text-xs text-stone-400">
+                      FD interest is taxed every year at your income-tax slab. Mutual-fund
+                      gains are taxed when you sell — not counted yet, so that preset sets 0.
+                    </p>
+                  </div>
+                )}
               </Field>
 
               <Field
@@ -579,24 +638,34 @@ export default function App() {
                     ))}
                   </div>
                   <p className="mt-1 text-xs text-stone-400">
-                    The old regime lets you deduct up to ₹2L/yr of home-loan interest
-                    (Section 24b); the new regime gives no benefit on a home you live in.
-                    Most salaried people default to the new regime unless they actively
-                    claim deductions. (80C principal is excluded — usually already used up.)
+                    The old regime gives each side a tax break: a buyer deducts up to ₹2L/yr
+                    of home-loan interest (Section 24b), and a renter gets the HRA exemption.
+                    The new regime gives neither. Most salaried people are on the new regime
+                    unless they actively claim deductions. (80C principal is excluded —
+                    usually already used up.)
                   </p>
-                  {adv.claimTaxBenefit && (
-                    <div className="mt-3">
-                      <Field label="Your income-tax slab">
-                        <Num
-                          value={adv.marginalTaxPct}
-                          step={5}
-                          onChange={(v) => setAdv({ ...adv, marginalTaxPct: v })}
-                          suffix="%"
-                        />
-                      </Field>
-                    </div>
-                  )}
                 </Field>
+
+                <Field label="Your income-tax slab">
+                  <Num value={adv.marginalTaxPct} step={5} onChange={setSlab} suffix="%" />
+                </Field>
+
+                {adv.claimTaxBenefit && (
+                  <Field label="Basic salary" hint="for the renter's HRA exemption">
+                    <Num
+                      value={adv.basicSalaryAnnual}
+                      step={50000}
+                      onChange={(v) => setAdv({ ...adv, basicSalaryAnnual: v })}
+                      suffix="₹/yr"
+                    />
+                    <p className="mt-1 text-xs text-stone-400">
+                      HRA exemption is the least of HRA received, rent minus 10% of basic, and
+                      {' '}{MARKET.tax.hraCapPctOfBasic}% of basic. We assume your HRA equals that
+                      {' '}{MARKET.tax.hraCapPctOfBasic}% and hold basic flat. The default is a guess — use
+                      the basic pay on your payslip. Set 0 if you get no HRA.
+                    </p>
+                  </Field>
+                )}
               </div>
             )}
           </div>
@@ -615,6 +684,7 @@ export default function App() {
                   ['loanRatePct', 'Loan rate %', 0.1],
                   ['tenureYears', 'Loan tenure (yrs)', 1],
                   ['rentInflationPct', 'Rent inflation %/yr', 0.5],
+                  ['costInflationPct', 'Upkeep inflation %/yr', 0.5],
                   ['stampDutyPct', 'Stamp duty %', 0.1],
                   ['registrationPct', 'Registration %', 0.1],
                   ['maintenanceMonthly', 'Maintenance ₹/mo', 500],
@@ -789,8 +859,16 @@ export default function App() {
                 </p>
                 <p>
                   <strong className="text-stone-700">Costs &amp; tax are modelled.</strong> GST on
-                  under-construction flats, interiors, and the Section 24b interest
-                  deduction (old regime) are all in — toggle them under <em>Costs &amp; taxes</em>.
+                  under-construction flats, interiors, and maintenance and property tax that
+                  rise each year are all in — adjust them under <em>Costs &amp; taxes</em> and{' '}
+                  <em>Assumptions</em>.
+                </p>
+                <p>
+                  <strong className="text-stone-700">Tax is applied to both sides.</strong> Under
+                  the old regime the buyer gets the Section 24b interest deduction and the
+                  renter gets the HRA exemption; under the new regime neither does. Interest
+                  on savings parked in an FD is taxed at your slab every year, whichever side
+                  is doing the saving.
                 </p>
                 <p className="text-stone-400">
                   This is arithmetic, not advice. It assumes the renter actually invests the
@@ -827,7 +905,12 @@ export default function App() {
                 </li>
                 <li>
                   <strong className="text-stone-700">Exit tax (LTCG).</strong> Capital-gains tax on
-                  the home sale and on the renter's investments isn't counted yet.
+                  the home sale and on mutual-fund investments isn't counted yet — so the
+                  mutual-funds option currently flatters whoever is investing.
+                </li>
+                <li>
+                  <strong className="text-stone-700">Your salary never moves.</strong> The HRA
+                  estimate holds basic pay flat and assumes HRA is a standard share of it.
                 </li>
                 <li>
                   <strong className="text-stone-700">The non-financial stuff.</strong> Security,

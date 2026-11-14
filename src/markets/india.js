@@ -32,6 +32,7 @@ export const MARKET = {
   recurring: {
     maintenancePerSqftMonthly: 3.5, // typical gated-community society maintenance
     propertyTaxPerSqftAnnual: 4.5,  // BBMP self-occupied ballpark (~₹7k for a 3BHK)
+    costInflationPct: 5,            // maintenance + property tax rise over time, like rent
   },
 
   // ── Financing norms ────────────────────────────────────────────────────
@@ -55,5 +56,15 @@ export const MARKET = {
     defaultMarginalPct: 30,
     // 80C principal deduction is deliberately excluded — for most salaried
     // buyers it's already used up by EPF/insurance.
+    //
+    // New regime is the default for salaried filers, so the tool starts there:
+    // neither 24b (buyer) nor HRA (renter) applies.
+    defaultRegime: 'new',
+    // HRA exemption (old regime, renters only): least of HRA received,
+    // rent − 10% of basic, and this % of basic. Bengaluru moved from 40% to the
+    // 50% metro list from FY 2026-27 under the Income Tax Rules, 2026 — reported
+    // by several outlets; the notified text has not been checked first-hand.
+    hraCapPctOfBasic: 50,
+    defaultBasicSalaryAnnual: 1500000, // a guess for this price band; user-editable
   },
 }
