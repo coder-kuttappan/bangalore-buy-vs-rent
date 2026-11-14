@@ -4,8 +4,9 @@
 // that start with the same cash.
 //
 //   BUY:  pay down payment + transaction costs upfront, pay EMI + maintenance
-//         + property tax monthly. Net worth = home value (minus selling costs)
-//         - outstanding loan + anything invested when owning was cheaper.
+//         + property tax monthly. Net worth = home value (minus selling costs
+//         and tax on the gain) - outstanding loan + anything invested when
+//         owning was cheaper.
 //   RENT: invest the upfront cash instead, pay rent monthly (inflating yearly).
 //         Whenever owning costs more per month than renting, the renter invests
 //         the difference; whenever renting costs more, the buyer invests it.
@@ -50,6 +51,10 @@ export function simulate(inputs) {
                            // (FD interest is taxed at slab); applies to BOTH portfolios
     basicSalaryAnnual = 0, // ₹ — enables the renter's HRA exemption (old regime only)
     hraCapPctOfBasic = 50, // HRA exemption ceiling as % of basic (metro rule)
+    // Exit taxes — what is owed if each side cashed out at that point.
+    homeExitTaxPct = 0,     // capital-gains tax on the home sale
+    investExitTaxPct = 0,   // capital-gains tax on investment gains (equity funds)
+    investExitExemption = 0, // ₹ of investment gain that is tax-free on exit
   } = inputs
 
   const loan = Math.max(price - downPayment, 0)
@@ -77,6 +82,13 @@ export function simulate(inputs) {
   let yearRent = 0       // rent paid in the current year, for the HRA exemption
   let renterPortfolio = downPayment + upfrontCosts - deposit // cash invested, deposit set aside
   let buyerPortfolio = 0
+  // money each side has put in, so the gain on exit can be worked out
+  let renterPaidIn = renterPortfolio
+  let buyerPaidIn = 0
+  // what the home cost to acquire, for the gain on sale: price plus stamp duty,
+  // registration and GST. Interiors are left out — most fit-out is not accepted
+  // as a cost of improvement.
+  const homeCost = price * (1 + (stampDutyPct + registrationPct + gstPct) / 100)
   let totalInterest = 0
   let yearInterest = 0   // interest paid in the current year, for the 24b cap
   let totalRentPaid = 0
@@ -111,8 +123,13 @@ export function simulate(inputs) {
     // household actually puts away rather than absorbs into lifestyle
     const invested = (investFraction / 100)
     const diff = buyerOutflow - renterOutflow
-    if (diff > 0) renterPortfolio += diff * invested
-    else buyerPortfolio += -diff * invested
+    if (diff > 0) {
+      renterPortfolio += diff * invested
+      renterPaidIn += diff * invested
+    } else {
+      buyerPortfolio += -diff * invested
+      buyerPaidIn += -diff * invested
+    }
 
     // year-end, old regime only: each side's income-tax saving goes into its
     // own pocket — modelled as money they invest.
@@ -126,12 +143,14 @@ export function simulate(inputs) {
       if (claimTaxBenefit) {
         const deductible = Math.min(yearInterest, interestDeductionCap)
         buyerPortfolio += deductible * (marginalTaxPct / 100)
+        buyerPaidIn += deductible * (marginalTaxPct / 100)
         if (basicSalaryAnnual > 0) {
           const hraExempt = Math.max(0, Math.min(
             yearRent - 0.1 * basicSalaryAnnual,
             basicSalaryAnnual * hraCapPctOfBasic / 100,
           ))
           renterPortfolio += hraExempt * (marginalTaxPct / 100)
+          renterPaidIn += hraExempt * (marginalTaxPct / 100)
         }
       }
       yearInterest = 0
@@ -148,11 +167,24 @@ export function simulate(inputs) {
     if (m % 12 === 0) series.push(snap)
   }
 
+  // tax owed on cashing out a portfolio: a flat rate on the gain above the
+  // tax-free allowance
+  function portfolioExitTax(value, paidIn) {
+    const gain = Math.max(value - paidIn - investExitExemption, 0)
+    return gain * investExitTaxPct / 100
+  }
+
+  // Net worth if each side cashed out this month: the buyer sells the home
+  // (less selling costs and tax on the gain) and clears the loan; both pay
+  // tax on their investment gains.
   function snapshot(m) {
+    const saleProceeds = homeValue * (1 - sellingCostPct / 100)
+    const homeTax = Math.max(saleProceeds - homeCost, 0) * homeExitTaxPct / 100
     return {
       year: m / 12,
-      buyNetWorth: homeValue * (1 - sellingCostPct / 100) - loanBalance + buyerPortfolio,
-      rentNetWorth: renterPortfolio + deposit,
+      buyNetWorth: saleProceeds - homeTax - loanBalance
+        + buyerPortfolio - portfolioExitTax(buyerPortfolio, buyerPaidIn),
+      rentNetWorth: renterPortfolio - portfolioExitTax(renterPortfolio, renterPaidIn) + deposit,
     }
   }
 

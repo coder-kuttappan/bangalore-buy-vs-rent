@@ -12,6 +12,7 @@ import { HPI_SOURCE_URL } from './data/hpi'
 import { MARKET } from './markets/india'
 import {
   defaultRent, defaultsFor, sizeCosts, encodeScenario, decodeScenario, toSimInputs, dealPrice,
+  investOption, FD_RETURN, EQUITY_RETURN,
 } from './lib/scenario'
 
 // the "advanced" slice of a scenario — everything held in the adv state object
@@ -107,8 +108,12 @@ function Num({ value, onChange, step = 1, min = 0, suffix }) {
   )
 }
 
-const FD_RETURN = 7
-const EQUITY_RETURN = 11
+// price tiers within an area, picked from the low / mid / high of its range
+const TIERS = [
+  ['low', 'Lower end'],
+  ['mid', 'Typical'],
+  ['high', 'Premium'],
+]
 
 export default function App() {
   // start from a shared link if the URL carries one, else our defaults
@@ -190,15 +195,14 @@ export default function App() {
     if (val === 0) {
       // "it gets spent" — stash the current slider position, then zero it
       if (adv.investFraction > 0) setPrevInvestFraction(adv.investFraction)
-      setAdv({ ...adv, investReturnPct: 0, investTaxPct: 0, investFraction: 0 })
+      setAdv({ ...adv, investReturnPct: 0, investTaxPct: 0, investExitTaxPct: 0, investFraction: 0 })
     } else {
       // FD / mutual funds — if the slider was zeroed by "spent", restore it;
       // otherwise leave whatever the user has dialed in. FD interest is taxed
-      // at slab every year; equity is taxed at sale, which isn't modelled yet.
+      // at slab every year; equity gains are taxed once, at sale.
       setAdv({
         ...adv,
-        investReturnPct: val,
-        investTaxPct: val === FD_RETURN ? adv.marginalTaxPct : 0,
+        ...investOption(val === EQUITY_RETURN ? 'equity' : 'fd', adv),
         investFraction: adv.investFraction === 0 ? prevInvestFraction : adv.investFraction,
       })
     }
@@ -257,6 +261,33 @@ export default function App() {
   // finishes at tenure — the crossover can land well past "compare over")
   const breakEven = useMemo(() => findBreakEven(simInputs), [simInputs])
   const breakEvenYear = breakEven === null ? null : new Date().getFullYear() + Math.round(breakEven)
+
+  // the same scenario with the spare money in an FD, and in equity funds —
+  // shown side by side because this choice often decides the answer
+  const byInvestment = ['fd', 'equity'].map((kind) => {
+    const option = investOption(kind, scenario)
+    const r = simulate(toSimInputs({ ...scenario, ...option }))
+    return {
+      kind,
+      label: kind === 'fd' ? `Fixed deposit (${FD_RETURN}%, taxed yearly)` : `Equity funds (${EQUITY_RETURN}%, taxed at sale)`,
+      verdict: r.verdict,
+      margin: r.margin,
+      active: scenario.investReturnPct === option.investReturnPct
+        && scenario.investTaxPct === option.investTaxPct
+        && scenario.investExitTaxPct === option.investExitTaxPct,
+    }
+  })
+  const investmentDecides = byInvestment[0].verdict !== byInvestment[1].verdict
+
+  // pick a price tier within the area; rent moves with it so both sides still
+  // describe the same flat
+  function pickTier(tier) {
+    const ppsf = area.pricePerSqft[tier]
+    const rent = Math.round(defaultRent(area, bhk) * ppsf / area.pricePerSqft.mid / 500) * 500
+    setPricePerSqft(ppsf)
+    setRentMonthly(rent)
+    setSecurityDeposit(MARKET.renting.securityDepositMonths * rent)
+  }
 
   // does the verdict survive across the likely range of appreciation?
   const verdictAt = (pct) => simulate({ ...simInputs, appreciationPct: pct }).verdict
@@ -395,12 +426,33 @@ export default function App() {
               onReset={() => setPricePerSqft(area.pricePerSqft.mid)}
               hint={
                 <span className="inline-flex items-center gap-1.5">
-                  range {inr(area.pricePerSqft.low)}–{inr(area.pricePerSqft.high)}{' '}
+                  range {inrFull(area.pricePerSqft.low)}–{inrFull(area.pricePerSqft.high)}{' '}
                   <ConfBadge level={area.confidence} />
                 </span>
               }
             >
               <Num value={pricePerSqft} onChange={setPricePerSqft} step={100} suffix="₹/sqft" />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {TIERS.map(([tier, label]) => (
+                  <button
+                    key={tier}
+                    type="button"
+                    onClick={() => pickTier(tier)}
+                    className={`rounded-full px-3 py-1 text-xs transition ${
+                      pricePerSqft === area.pricePerSqft[tier]
+                        ? 'bg-teal-700 text-white'
+                        : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                    }`}
+                  >
+                    {label} {inrFull(area.pricePerSqft[tier])}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-stone-400">
+                Lower end is older or resale flats; premium is a top-tier builder or a new
+                launch. Rent moves with it. A specific project can sit outside this range —
+                type your own numbers if you have a quote.
+              </p>
             </Field>
 
             <Field label="Discount off the asking price">
@@ -576,20 +628,32 @@ export default function App() {
                 </div>
                 {adv.investReturnPct > 0 && (
                   <div className="mt-3">
-                    <Field
-                      label="Tax on those returns"
-                      hint={`${(adv.investReturnPct * (1 - adv.investTaxPct / 100)).toFixed(1)}% after tax`}
-                    >
-                      <Num
-                        value={adv.investTaxPct}
-                        step={5}
-                        onChange={(v) => setAdv({ ...adv, investTaxPct: Math.min(v, 100) })}
-                        suffix="%"
-                      />
-                    </Field>
+                    {adv.investExitTaxPct > 0 ? (
+                      <Field label="Tax on the gains when sold" hint="equity funds">
+                        <Num
+                          value={adv.investExitTaxPct}
+                          step={2.5}
+                          onChange={(v) => setAdv({ ...adv, investExitTaxPct: Math.min(v, 100) })}
+                          suffix="%"
+                        />
+                      </Field>
+                    ) : (
+                      <Field
+                        label="Tax on those returns each year"
+                        hint={`${(adv.investReturnPct * (1 - adv.investTaxPct / 100)).toFixed(1)}% after tax`}
+                      >
+                        <Num
+                          value={adv.investTaxPct}
+                          step={5}
+                          onChange={(v) => setAdv({ ...adv, investTaxPct: Math.min(v, 100) })}
+                          suffix="%"
+                        />
+                      </Field>
+                    )}
                     <p className="mt-1 text-xs text-stone-400">
-                      FD interest is taxed every year at your income-tax slab. Mutual-fund
-                      gains are taxed when you sell — not counted yet, so that preset sets 0.
+                      FD interest is taxed every year at your income-tax slab. Equity-fund
+                      gains are taxed once, when you sell: {MARKET.tax.equityGainsTaxPct}% above
+                      the first {inr(MARKET.tax.equityGainsExemption)}.
                     </p>
                   </div>
                 )}
@@ -678,6 +742,46 @@ export default function App() {
                     livable — a cost the renter skips. Don't know the budget? The per-sqft
                     rate gives you a ballpark.
                   </p>
+                </Field>
+
+                <Field label="Count the tax on cashing out?">
+                  <div className="flex gap-2">
+                    {[
+                      [true, 'Yes'],
+                      [false, 'No'],
+                    ].map(([val, label]) => (
+                      <button
+                        key={label}
+                        onClick={() => setAdv({ ...adv, countExitTax: val })}
+                        className={`flex-1 rounded-lg px-3 py-2 text-sm transition ${
+                          adv.countExitTax === val
+                            ? 'bg-teal-700 text-white'
+                            : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-stone-400">
+                    Net worth is compared as if each side cashed out: the home is sold and
+                    the gain taxed at {MARKET.tax.propertyGainsTaxPct}%, and equity-fund gains
+                    are taxed at {MARKET.tax.equityGainsTaxPct}%.
+                  </p>
+                  {adv.countExitTax && (
+                    <label className="mt-2 flex items-start gap-2 text-xs text-stone-600">
+                      <input
+                        type="checkbox"
+                        checked={adv.reinvestInHome}
+                        onChange={(e) => setAdv({ ...adv, reinvestInHome: e.target.checked })}
+                        className="mt-0.5 accent-teal-700"
+                      />
+                      <span>
+                        I'd put the sale money into another home — that exempts the home-sale
+                        gain from tax.
+                      </span>
+                    </label>
+                  )}
                 </Field>
 
                 <Field label="Which tax regime are you on?">
@@ -782,6 +886,32 @@ export default function App() {
             <div className="mt-2 opacity-90">
               by <strong>{inr(result.margin)}</strong> in net worth
             </div>
+            {adv.investFraction > 0 && (
+              <div className="mt-4 rounded-xl bg-white/10 p-3 text-sm">
+                <div className="mb-2 text-xs uppercase tracking-wide opacity-80">
+                  {investmentDecides
+                    ? 'It depends on where your spare money goes'
+                    : 'Same answer wherever your spare money goes'}
+                </div>
+                <div className="space-y-1.5">
+                  {byInvestment.map((o) => (
+                    <button
+                      key={o.kind}
+                      type="button"
+                      onClick={() => pickReturn(o.kind === 'fd' ? FD_RETURN : EQUITY_RETURN)}
+                      className={`flex w-full flex-wrap items-baseline justify-between gap-x-3 rounded-lg px-2.5 py-1.5 text-left transition ${
+                        o.active ? 'bg-white/20' : 'hover:bg-white/10'
+                      }`}
+                    >
+                      <span>{o.label}</span>
+                      <span>
+                        <strong>{o.verdict === 'buy' ? 'Buying' : 'Renting'}</strong> wins by {inr(o.margin)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="mt-3 space-y-2 border-t border-white/20 pt-3 text-sm opacity-90">
               <div>
                 {rangeVerdicts.low === rangeVerdicts.high ? (
@@ -819,8 +949,7 @@ export default function App() {
                   <>
                     Flip it: renting wins if your savings earn more than{' '}
                     <strong>{tippingInvestReturn.toFixed(1)}%/yr</strong>
-                    {' '}— you've assumed {adv.investReturnPct}%. Equity mutual funds have
-                    historically returned ~11%.
+                    {' '}— you've assumed {adv.investReturnPct}%.
                   </>
                 )}
               </div>
@@ -951,7 +1080,8 @@ export default function App() {
                   the old regime the buyer gets the Section 24b interest deduction and the
                   renter gets the HRA exemption; under the new regime neither does. Interest
                   on savings parked in an FD is taxed at your slab every year, whichever side
-                  is doing the saving.
+                  is doing the saving. Net worth is compared after cashing out: the home-sale
+                  gain and equity-fund gains are each taxed at {MARKET.tax.propertyGainsTaxPct}%.
                 </p>
                 <p className="text-stone-400">
                   This is arithmetic, not advice. It assumes the renter actually invests the
@@ -987,9 +1117,9 @@ export default function App() {
                   home loans float — a rate rise would raise your EMI and shift the verdict.
                 </li>
                 <li>
-                  <strong className="text-stone-700">Exit tax (LTCG).</strong> Capital-gains tax on
-                  the home sale and on mutual-fund investments isn't counted yet — so the
-                  mutual-funds option currently flatters whoever is investing.
+                  <strong className="text-stone-700">Cess, surcharge and tax harvesting.</strong>{' '}
+                  Tax rates are the headline ones. The 4% cess and any surcharge are left out,
+                  and so is selling a little equity each year to use the tax-free allowance.
                 </li>
                 <li>
                   <strong className="text-stone-700">Your salary never moves.</strong> The HRA

@@ -119,6 +119,9 @@ export const DEFAULTS = {
   // FD interest is taxed at slab each year, so the default 7% FD nets ~4.9%.
   // Equity gains are taxed at sale instead — not modelled yet, so that preset sets 0.
   investTaxPct: MARKET.tax.defaultMarginalPct,
+  investExitTaxPct: 0,     // tax on investment gains at sale; the equity preset sets this
+  countExitTax: true,      // tax the home sale (and equity gains) when comparing net worth
+  reinvestInHome: false,   // buying another home with the proceeds exempts the home-sale gain
 }
 
 // What kind of stock the price (and matched rent) defaults describe. Most areas

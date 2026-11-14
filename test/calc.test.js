@@ -190,3 +190,39 @@ test('each area starts at the official end of its appreciation range', async () 
   const mean = AREAS.reduce((s, a) => s + a.appreciationPct, 0) / AREAS.length
   near(mean, CITY_APPRECIATION.officialPct, 0.06) // area average matches the RBI city rate
 })
+
+test('exit tax on the home is charged on the gain over what it cost to acquire', () => {
+  // 1 Cr home, 10% a year for a year -> 1.1 Cr; cost includes 7.6% duty + registration
+  const inputs = bare({ appreciationPct: 10, stampDutyPct: 5.6, registrationPct: 2 })
+  const untaxed = simulate(inputs).buyNetWorthAtHorizon
+  const taxed = simulate({ ...inputs, homeExitTaxPct: 12.5 }).buyNetWorthAtHorizon
+  near(untaxed - taxed, (11000000 - 10760000) * 0.125, 0.5)
+  // no gain, no tax
+  const flat = bare({ homeExitTaxPct: 12.5, stampDutyPct: 5.6 })
+  near(simulate(flat).buyNetWorthAtHorizon, 10000000, 0.01)
+})
+
+test('exit tax on investments is charged on the gain above the allowance', () => {
+  // renter keeps 1 Cr invested at 10% for a year: gain 10L
+  const inputs = bare({ investReturnPct: 10 })
+  const untaxed = simulate(inputs).rentNetWorthAtHorizon
+  near(untaxed - simulate({ ...inputs, investExitTaxPct: 12.5 }).rentNetWorthAtHorizon, 125000, 0.5)
+  near(untaxed - simulate({ ...inputs, investExitTaxPct: 12.5, investExitExemption: 125000 }).rentNetWorthAtHorizon, 109375, 0.5)
+  // money paid in along the way is not counted as gain
+  const saving = bare({ downPayment: 2000000, rentMonthly: 20000, investExitTaxPct: 12.5, horizonYears: 3 })
+  near(simulate(saving).rentNetWorthAtHorizon, simulate({ ...saving, investExitTaxPct: 0 }).rentNetWorthAtHorizon, 0.01)
+})
+
+test('scenario switches control which exit taxes apply', async () => {
+  const { toSimInputs: sim, investOption } = await import('../src/lib/scenario.js')
+  const d = defaultsFor()
+  assert.equal(sim(d).homeExitTaxPct, 12.5)
+  assert.equal(sim(d).investExitTaxPct, 0) // FD: taxed yearly instead
+  assert.equal(sim({ ...d, reinvestInHome: true }).homeExitTaxPct, 0)
+  const equity = { ...d, ...investOption('equity', d) }
+  assert.equal(sim(equity).investExitTaxPct, 12.5)
+  assert.equal(sim(equity).investTaxPct, 0)
+  assert.equal(sim({ ...equity, countExitTax: false }).investExitTaxPct, 0)
+  assert.equal(sim({ ...equity, countExitTax: false }).homeExitTaxPct, 0)
+  assert.deepEqual(investOption('fd', d), { investReturnPct: 7, investTaxPct: d.marginalTaxPct, investExitTaxPct: 0 })
+})

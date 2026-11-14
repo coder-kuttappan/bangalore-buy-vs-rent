@@ -16,7 +16,10 @@ Most buy-vs-rent calculators hardcode a single appreciation number and ignore ta
 - **Costs modelled:** stamp duty, registration, GST on under-construction, interiors, and maintenance and property tax that rise each year.
 - **Tax applied to both sides:** under the old regime the buyer gets the Section 24b interest deduction and the renter gets the HRA exemption; under the new regime (the default) neither does. FD interest is taxed at slab for whoever is saving.
 - **Shareable links:** the address bar always holds a link to exactly the scenario on screen. It lives in the URL fragment, which browsers never send to a server.
-- **"What this leaves out":** the calculator names its own remaining blind spots (LTCG, illiquidity, floating rates, volatility) on purpose.
+- **Exit taxes:** net worth is compared after cashing out — the home-sale gain and equity-fund gains are each taxed, with an option for reinvesting in another home.
+- **FD and equity side by side:** the verdict card shows the answer for both, because where the spare money goes often decides it.
+- **Price tiers:** lower end, typical and premium within each area, with rent moving to match.
+- **"What this leaves out":** the calculator names its own remaining blind spots (illiquidity, floating rates, volatility) on purpose.
 
 ## Methodology, in short
 

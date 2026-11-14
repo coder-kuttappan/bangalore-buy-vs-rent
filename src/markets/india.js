@@ -65,6 +65,13 @@ export const MARKET = {
     // 50% metro list from FY 2026-27 under the Income Tax Rules, 2026 — reported
     // by several outlets; the notified text has not been checked first-hand.
     hraCapPctOfBasic: 50,
+    // Long-term capital gains, FY 2026-27 (from secondary sources, not the Act):
+    // 12.5% on a home sale with no indexation; 12.5% on equity-fund gains above
+    // ₹1.25L a year. Cess and surcharge are left out here, as they are for the
+    // slab rate. Reinvesting a home-sale gain in another home can exempt it.
+    propertyGainsTaxPct: 12.5,
+    equityGainsTaxPct: 12.5,
+    equityGainsExemption: 125000,
     defaultBasicSalaryAnnual: 1500000, // a guess for this price band; user-editable
   },
 }

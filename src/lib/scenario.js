@@ -59,6 +59,9 @@ const FIELDS = {
   ap: ['appreciationPct', 'num'],
   ir: ['investReturnPct', 'num'],
   it: ['investTaxPct', 'num'],
+  ix: ['investExitTaxPct', 'num'],
+  xt: ['countExitTax', 'bool'],
+  re: ['reinvestInHome', 'bool'],
   if: ['investFraction', 'num'],
   h: ['horizonYears', 'num'],
   lr: ['loanRatePct', 'num'],
@@ -170,5 +173,19 @@ export function toSimInputs(s) {
     interestDeductionCap: MARKET.tax.homeLoanInterestCap,
     basicSalaryAnnual: s.basicSalaryAnnual,
     hraCapPctOfBasic: MARKET.tax.hraCapPctOfBasic,
+    homeExitTaxPct: s.countExitTax && !s.reinvestInHome ? MARKET.tax.propertyGainsTaxPct : 0,
+    investExitTaxPct: s.countExitTax ? s.investExitTaxPct : 0,
+    investExitExemption: MARKET.tax.equityGainsExemption,
   }
+}
+
+// The two usual homes for spare cash, with how each is taxed. FD interest is
+// taxed every year at the saver's slab; equity-fund gains are taxed once, when
+// sold.
+export const FD_RETURN = 7
+export const EQUITY_RETURN = 11
+export function investOption(kind, s) {
+  return kind === 'equity'
+    ? { investReturnPct: EQUITY_RETURN, investTaxPct: 0, investExitTaxPct: MARKET.tax.equityGainsTaxPct }
+    : { investReturnPct: FD_RETURN, investTaxPct: s.marginalTaxPct, investExitTaxPct: 0 }
 }
