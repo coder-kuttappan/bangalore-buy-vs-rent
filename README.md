@@ -18,6 +18,7 @@ Most buy-vs-rent calculators hardcode a single appreciation number and ignore ta
 - **Shareable links:** the address bar always holds a link to exactly the scenario on screen. It lives in the URL fragment, which browsers never send to a server.
 - **Exit taxes:** net worth is compared after cashing out — the home-sale gain and equity-fund gains are each taxed, with an option for reinvesting in another home.
 - **FD and equity side by side:** the verdict card shows the answer for both, because where the spare money goes often decides it.
+- **All areas at a glance:** a compare table ranks every area by how long buying takes to pull ahead, on your own settings.
 - **Price tiers:** lower end, typical and premium within each area, with rent moving to match.
 - **"What this leaves out":** the calculator names its own remaining blind spots (illiquidity, floating rates, volatility) on purpose.
 

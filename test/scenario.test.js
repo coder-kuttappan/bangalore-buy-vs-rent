@@ -69,3 +69,20 @@ test('a discount lowers the price the buyer pays, and travels in the link', asyn
   assert.equal(decodeScenario('#a=Horamavu&disc=10').priceDiscountPct, 10)
   assert.equal(dealPrice({ ...full, priceDiscountPct: 500 }), dealPrice({ ...full, priceDiscountPct: 90 }))
 })
+
+test('the compare table covers every area, sorted by break-even', async () => {
+  const { compareAreas } = await import('../src/lib/scenario.js')
+  const { simulate, findBreakEven } = await import('../src/lib/calc.js')
+  const mine = { ...defaultsFor('Koramangala', '3 BHK'), downPaymentPct: 40, pricePerSqft: 99999 }
+  const rows = compareAreas(mine, simulate, findBreakEven)
+  assert.equal(rows.length, AREAS.length)
+  const be = rows.map((r) => r.fd.breakEven ?? Infinity)
+  assert.deepEqual(be, [...be].sort((a, b) => a - b))
+  // each row uses its own area's price, not the one the user typed for another area
+  const whitefield = rows.find((r) => r.name === 'Whitefield')
+  assert.equal(whitefield.pricePerSqft, defaultsFor('Whitefield', '3 BHK').pricePerSqft)
+  assert.equal(whitefield.rentMonthly, defaultsFor('Whitefield', '3 BHK').rentMonthly)
+  // but keeps the user's own settings: a bigger down payment changes the answer
+  const standard = compareAreas(defaultsFor('Koramangala', '3 BHK'), simulate, findBreakEven)
+  assert.notEqual(whitefield.fd.margin, standard.find((r) => r.name === 'Whitefield').fd.margin)
+})

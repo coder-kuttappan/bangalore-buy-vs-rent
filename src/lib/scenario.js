@@ -189,3 +189,29 @@ export function investOption(kind, s) {
     ? { investReturnPct: EQUITY_RETURN, investTaxPct: 0, investExitTaxPct: MARKET.tax.equityGainsTaxPct }
     : { investReturnPct: FD_RETURN, investTaxPct: s.marginalTaxPct, investExitTaxPct: 0 }
 }
+
+// Every area side by side, for the compare table. Each row uses that area's
+// own defaults (price, rent, appreciation) for the chosen size, and keeps the
+// user's personal settings — down payment, horizon, tax, discipline and so on.
+const AREA_FIELDS = ['area', 'pricePerSqft', 'rentMonthly', 'securityDeposit', 'appreciationPct']
+export function compareAreas(scenario, simulate, findBreakEven) {
+  return AREAS.map((area) => {
+    const defaults = defaultsFor(area.name, scenario.bhk, scenario.sqft)
+    const base = { ...scenario }
+    for (const key of AREA_FIELDS) base[key] = defaults[key]
+    const run = (kind) => {
+      const s = { ...base, ...investOption(kind, base) }
+      const r = simulate(toSimInputs(s))
+      return { verdict: r.verdict, margin: r.margin, breakEven: findBreakEven(toSimInputs(s)) }
+    }
+    return {
+      name: area.name,
+      pricePerSqft: defaults.pricePerSqft,
+      rentMonthly: defaults.rentMonthly,
+      appreciationPct: area.appreciationPct,
+      appreciationListingPct: area.appreciationListingPct,
+      fd: run('fd'),
+      equity: run('equity'),
+    }
+  }).sort((a, b) => (a.fd.breakEven ?? Infinity) - (b.fd.breakEven ?? Infinity))
+}

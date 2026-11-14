@@ -12,8 +12,9 @@ import { HPI_SOURCE_URL } from './data/hpi'
 import { MARKET } from './markets/india'
 import {
   defaultRent, defaultsFor, sizeCosts, encodeScenario, decodeScenario, toSimInputs, dealPrice,
-  investOption, FD_RETURN, EQUITY_RETURN,
+  investOption, compareAreas, FD_RETURN, EQUITY_RETURN,
 } from './lib/scenario'
+import Compare from './Compare'
 
 // the "advanced" slice of a scenario — everything held in the adv state object
 const advFrom = (scenario) =>
@@ -279,6 +280,14 @@ export default function App() {
   })
   const investmentDecides = byInvestment[0].verdict !== byInvestment[1].verdict
 
+  // every area on the user's own settings, for the compare table
+  const compareRows = useMemo(() => compareAreas(scenario, simulate, findBreakEven), [scenario])
+
+  function pickFromCompare(name) {
+    pickArea(name)
+    document.getElementById('calculator')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   // pick a price tier within the area; rent moves with it so both sides still
   // describe the same flat
   function pickTier(tier) {
@@ -357,7 +366,15 @@ export default function App() {
         </div>
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-[360px_1fr]">
+      <Compare
+        rows={compareRows}
+        bhk={bhk}
+        horizonYears={adv.horizonYears}
+        selected={areaName}
+        onPick={pickFromCompare}
+      />
+
+      <div id="calculator" className="grid scroll-mt-4 gap-8 lg:grid-cols-[360px_1fr]">
         {/* inputs */}
         <div className="min-w-0 space-y-4">
           <div className="rounded-2xl bg-white p-5 shadow-sm space-y-4">
