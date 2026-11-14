@@ -14,7 +14,9 @@
 // To refresh: download the spreadsheet from the path above and append the new
 // rows to HPI_NEW. Everything derived from it recalculates.
 
-export const HPI_SOURCE_URL = 'https://data.rbi.org.in/DBIE/#/dbie/home'
+// Links to RBI's press release for the latest quarter, which opens without a
+// login and points on to the full city series. Update with each refresh.
+export const HPI_SOURCE_URL = 'https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx?prid=63436'
 
 // base 2010-11 = 100
 export const HPI_OLD = [
