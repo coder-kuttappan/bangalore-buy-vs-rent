@@ -25,7 +25,12 @@ export const MARKET = {
     sellingCostPct: 2,    // brokerage on eventual sale
     // GST applies to under-construction property only; ready/resale is exempt
     gstPct: { ready: 0, underConstruction: 5, affordable: 1 },
-    interiorsPerSqft: 1500, // typical new-flat interiors (kitchen, wardrobes, fixtures)
+    // Interiors (kitchen, wardrobes, fixtures) scale with how expensive the
+    // flat is: a rule-of-thumb 10% of the price, kept within a sensible band
+    // per sqft. These three numbers are our assumption, not sourced data.
+    interiorsPctOfPrice: 10,
+    interiorsMinPerSqft: 700,
+    interiorsMaxPerSqft: 2500,
   },
 
   // ── Recurring ownership costs (scale with flat size) ───────────────────

@@ -86,3 +86,12 @@ test('the compare table covers every area, sorted by break-even', async () => {
   const standard = compareAreas(defaultsFor('Koramangala', '3 BHK'), simulate, findBreakEven)
   assert.notEqual(whitefield.fd.margin, standard.find((r) => r.name === 'Whitefield').fd.margin)
 })
+
+test('interiors default scales with the price of the flat, within a band', async () => {
+  const { defaultInteriors } = await import('../src/lib/scenario.js')
+  assert.equal(defaultInteriors(12500, 1150), 1440000)  // 10% of price = 1,250/sqft
+  assert.equal(defaultInteriors(6200, 1150), 805000)    // floor of 700/sqft
+  assert.equal(defaultInteriors(40000, 1000), 2500000)  // ceiling of 2,500/sqft
+  assert.ok(defaultsFor('Horamavu').interiorsBudget < defaultsFor('Indiranagar').interiorsBudget)
+  assert.equal(encodeScenario(defaultsFor('Horamavu', '3 BHK')), 'a=Horamavu&b=3')
+})

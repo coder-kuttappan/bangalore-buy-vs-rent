@@ -27,6 +27,14 @@ export function sizeCosts(sqft) {
   }
 }
 
+// Default interiors budget: a share of the flat's price, within a per-sqft band,
+// so a cheaper flat isn't loaded with a premium flat's fit-out.
+export function defaultInteriors(pricePerSqft, sqft) {
+  const { interiorsPctOfPrice, interiorsMinPerSqft, interiorsMaxPerSqft } = MARKET.cost
+  const perSqft = Math.min(Math.max(pricePerSqft * interiorsPctOfPrice / 100, interiorsMinPerSqft), interiorsMaxPerSqft)
+  return Math.round(perSqft * sqft / 5000) * 5000
+}
+
 // Our researched starting point for an area and size. Pass sqft to get the
 // defaults for a custom size (maintenance and property tax follow it).
 export function defaultsFor(areaName = DEFAULT_AREA, bhk = DEFAULT_BHK, sqft) {
@@ -44,6 +52,7 @@ export function defaultsFor(areaName = DEFAULT_AREA, bhk = DEFAULT_BHK, sqft) {
     downPaymentPct: 20,
     ...DEFAULTS,
     ...sizeCosts(size),
+    interiorsBudget: defaultInteriors(area.pricePerSqft.mid, size),
     appreciationPct: area.appreciationPct,
   }
 }
@@ -193,7 +202,7 @@ export function investOption(kind, s) {
 // Every area side by side, for the compare table. Each row uses that area's
 // own defaults (price, rent, appreciation) for the chosen size, and keeps the
 // user's personal settings — down payment, horizon, tax, discipline and so on.
-const AREA_FIELDS = ['area', 'pricePerSqft', 'rentMonthly', 'securityDeposit', 'appreciationPct']
+const AREA_FIELDS = ['area', 'pricePerSqft', 'rentMonthly', 'securityDeposit', 'appreciationPct', 'interiorsBudget']
 export function compareAreas(scenario, simulate, findBreakEven) {
   return AREAS.map((area) => {
     const defaults = defaultsFor(area.name, scenario.bhk, scenario.sqft)

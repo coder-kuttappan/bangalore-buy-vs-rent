@@ -11,7 +11,7 @@ import { AREAS, BHK_PRESETS, DEFAULTS, DATA_ASOF, CITY_APPRECIATION } from './da
 import { HPI_SOURCE_URL } from './data/hpi'
 import { MARKET } from './markets/india'
 import {
-  defaultRent, defaultsFor, sizeCosts, encodeScenario, decodeScenario, toSimInputs, dealPrice,
+  defaultRent, defaultsFor, sizeCosts, defaultInteriors, encodeScenario, decodeScenario, toSimInputs, dealPrice,
   investOption, compareAreas, FD_RETURN, EQUITY_RETURN,
 } from './lib/scenario'
 import Compare from './Compare'
@@ -150,7 +150,7 @@ export default function App() {
   // maintenance and property tax track flat size — recompute when the size changes
   function setSqft(v) {
     setSqftRaw(v)
-    setAdv((prev) => ({ ...prev, ...sizeCosts(v) }))
+    setAdv((prev) => ({ ...prev, ...sizeCosts(v), interiorsBudget: defaultInteriors(pricePerSqft, v) }))
   }
 
   // load a whole scenario at once (reset, or a shared link pasted into this tab)
@@ -183,7 +183,11 @@ export default function App() {
     setPricePerSqft(a.pricePerSqft.mid)
     setRentMonthly(rent)
     setSecurityDeposit(MARKET.renting.securityDepositMonths * rent)
-    setAdv((prev) => ({ ...prev, appreciationPct: a.appreciationPct }))
+    setAdv((prev) => ({
+      ...prev,
+      appreciationPct: a.appreciationPct,
+      interiorsBudget: defaultInteriors(a.pricePerSqft.mid, sqft),
+    }))
   }
 
   // restore everything to our researched defaults for the current area + size
@@ -296,6 +300,7 @@ export default function App() {
     setPricePerSqft(ppsf)
     setRentMonthly(rent)
     setSecurityDeposit(MARKET.renting.securityDepositMonths * rent)
+    setAdv((prev) => ({ ...prev, interiorsBudget: defaultInteriors(ppsf, sqft) }))
   }
 
   // does the verdict survive across the likely range of appreciation?
@@ -756,8 +761,8 @@ export default function App() {
                   </div>
                   <p className="mt-1 text-xs text-stone-400">
                     A new flat needs interiors (kitchen, wardrobes, fixtures) before it's
-                    livable — a cost the renter skips. Don't know the budget? The per-sqft
-                    rate gives you a ballpark.
+                    livable — a cost the renter skips. We start at about 10% of the flat's
+                    price, a common rule of thumb; put in your own budget if you have one.
                   </p>
                 </Field>
 

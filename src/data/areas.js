@@ -103,7 +103,7 @@ export const DEFAULTS = {
   sellingCostPct: MARKET.cost.sellingCostPct,
   priceDiscountPct: 0,   // % the buyer expects to pay below the asking price
   propertyType: 'ready', // 'ready' (0% GST) | 'under-construction'
-  interiorsBudget: Math.round(DEFAULT_SQFT * MARKET.cost.interiorsPerSqft), // total ₹; per-sqft derived in UI
+  interiorsBudget: 0, // total ₹ — set per area and size by defaultsFor() in lib/scenario.js
   // recurring (from market) — maintenance & tax scale with size, recomputed live
   maintenanceMonthly: Math.round(DEFAULT_SQFT * MARKET.recurring.maintenancePerSqftMonthly),
   propertyTaxAnnual: Math.round(DEFAULT_SQFT * MARKET.recurring.propertyTaxPerSqftAnnual),
