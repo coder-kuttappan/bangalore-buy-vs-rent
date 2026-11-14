@@ -1,0 +1,19 @@
+{
+  // Cloudflare Worker for shared quotes. Deploy with: npx wrangler deploy
+  "name": "buyvsrent-quotes",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "vars": {
+    // sites allowed to call this API from a browser; the first is the default
+    "ALLOWED_ORIGINS": "https://buyvsrent.coderkuttappan.com,http://localhost:5173,http://localhost:4173"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "buyvsrent-quotes",
+      // filled in when the database is created: npx wrangler d1 create buyvsrent-quotes
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ]
+  // HASH_SALT is a secret, set once with: npx wrangler secret put HASH_SALT
+}
