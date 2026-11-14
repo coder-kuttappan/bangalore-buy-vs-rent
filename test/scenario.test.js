@@ -57,3 +57,15 @@ test('a mangled or hostile link falls back to safe values', () => {
   assert.equal(s.downPaymentPct, d.downPaymentPct)
   assert.equal(decodeScenario('#utm_source=whatever'), null)
 })
+
+test('a discount lowers the price the buyer pays, and travels in the link', async () => {
+  const { toSimInputs, dealPrice } = await import('../src/lib/scenario.js')
+  const full = defaultsFor('Horamavu')
+  const cut = { ...full, priceDiscountPct: 10 }
+  assert.equal(dealPrice(full), full.pricePerSqft * full.sqft)
+  assert.ok(Math.abs(dealPrice(cut) - 0.9 * dealPrice(full)) < 1e-6)
+  assert.ok(Math.abs(toSimInputs(cut).downPayment - 0.9 * toSimInputs(full).downPayment) < 1e-6)
+  assert.equal(encodeScenario(cut), 'a=Horamavu&disc=10')
+  assert.equal(decodeScenario('#a=Horamavu&disc=10').priceDiscountPct, 10)
+  assert.equal(dealPrice({ ...full, priceDiscountPct: 500 }), dealPrice({ ...full, priceDiscountPct: 90 }))
+})

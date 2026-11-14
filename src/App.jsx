@@ -7,10 +7,11 @@ import {
   simulate, appreciationTippingPoint, investReturnTippingPoint, findBreakEven,
 } from './lib/calc'
 import { inr, inrFull, years } from './lib/format'
-import { AREAS, BHK_PRESETS, DEFAULTS, DATA_ASOF } from './data/areas'
+import { AREAS, BHK_PRESETS, DEFAULTS, DATA_ASOF, CITY_APPRECIATION } from './data/areas'
+import { HPI_SOURCE_URL } from './data/hpi'
 import { MARKET } from './markets/india'
 import {
-  defaultRent, defaultsFor, sizeCosts, encodeScenario, decodeScenario, toSimInputs,
+  defaultRent, defaultsFor, sizeCosts, encodeScenario, decodeScenario, toSimInputs, dealPrice,
 } from './lib/scenario'
 
 // the "advanced" slice of a scenario — everything held in the adv state object
@@ -31,17 +32,17 @@ function ConfBadge({ level }) {
   )
 }
 
-function SourceLink({ href }) {
+function SourceLink({ href, label = 'source', title = 'See the market source (a listing portal)' }) {
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
-      title="See the market source (a listing portal)"
+      title={title}
       className="whitespace-nowrap text-stone-400 underline decoration-dotted hover:text-teal-700"
     >
-      source ↗
+      {label} ↗
     </a>
   )
 }
@@ -71,9 +72,14 @@ function Field({ label, hint, dirty, onReset, children }) {
 }
 
 function Num({ value, onChange, step = 1, min = 0, suffix }) {
-  // hold raw text while typing so clearing the field doesn't snap to 0
+  // hold raw text while typing so clearing the field doesn't snap to 0; when
+  // the value changes from outside (area switch, reset), show the new value
   const [text, setText] = useState(String(value))
-  useEffect(() => { setText(String(value)) }, [value])
+  const [shown, setShown] = useState(value)
+  if (value !== shown) {
+    setShown(value)
+    setText(String(value))
+  }
   return (
     <div className="relative">
       <input
@@ -132,7 +138,7 @@ export default function App() {
   // zeroed it, so switching back to FD / mutual funds restores that value
   const [prevInvestFraction, setPrevInvestFraction] = useState(DEFAULTS.investFraction)
 
-  const price = pricePerSqft * sqft
+  const price = dealPrice({ pricePerSqft, sqft, priceDiscountPct: adv.priceDiscountPct })
   const downPayment = price * downPaymentPct / 100
 
   // maintenance and property tax track flat size — recompute when the size changes
@@ -252,6 +258,13 @@ export default function App() {
   const breakEven = useMemo(() => findBreakEven(simInputs), [simInputs])
   const breakEvenYear = breakEven === null ? null : new Date().getFullYear() + Math.round(breakEven)
 
+  // does the verdict survive across the likely range of appreciation?
+  const verdictAt = (pct) => simulate({ ...simInputs, appreciationPct: pct }).verdict
+  const rangeVerdicts = {
+    low: verdictAt(area.appreciationPct),
+    high: verdictAt(area.appreciationListingPct),
+  }
+
   // the two levers that flip the verdict, everything else held
   const tippingAppreciation = useMemo(() => appreciationTippingPoint(simInputs), [simInputs])
   const tippingInvestReturn = useMemo(() => investReturnTippingPoint(simInputs), [simInputs])
@@ -292,10 +305,10 @@ export default function App() {
                   <strong className="text-stone-800">These are estimates, not quotes.</strong>{' '}
                   Prices and rents come from property listing sites, which usually run higher
                   than the price flats actually sell or rent for — so we adjust them down.
-                  Appreciation (how fast prices rise) is the least certain figure: there's no
-                  official long-term price record for each area, so we estimate it from listing
-                  trends and pull it toward a realistic city-wide average. Treat every number
-                  as a ballpark.
+                  Appreciation (how fast prices rise) is the least certain figure. Official
+                  records give one rate for the whole city; how each area differs is estimated
+                  from listing trends. We show both ends of the likely range. Treat every
+                  number as a ballpark.
                   <strong className="mt-2 block text-stone-800">
                     Do not make a purchase decision solely based on this tool.
                   </strong>
@@ -391,6 +404,23 @@ export default function App() {
               <Num value={pricePerSqft} onChange={setPricePerSqft} step={100} suffix="₹/sqft" />
             </Field>
 
+            <Field
+              label="Discount off the asking price"
+              hint={<SourceLink href={area.sources.registered} label="registered sale prices" title="Registered sale values for this area (a property portal)" />}
+            >
+              <Num
+                value={adv.priceDiscountPct}
+                step={5}
+                onChange={(v) => setAdv({ ...adv, priceDiscountPct: Math.min(v, 90) })}
+                suffix="%"
+              />
+              <p className="mt-1 text-xs text-stone-400">
+                The price above is an asking price. Registered sale values in Bangalore run
+                roughly 10–40% lower, though part of that gap is older flats, not bargaining.
+                Set what you expect to negotiate; leave 0 to use the asking price.
+              </p>
+            </Field>
+
             <div className="rounded-lg bg-stone-50 px-3 py-2 text-sm">
               Property price: <strong>{inr(price)}</strong>{' '}
               <span className="text-stone-400">({inrFull(price)})</span>
@@ -461,8 +491,8 @@ export default function App() {
                 onReset={() => setAdv({ ...adv, appreciationPct: area.appreciationPct })}
                 hint={
                   <span className="inline-flex items-center gap-1.5">
-                    {area.name} ~{area.appreciationPct}%/yr <ConfBadge level={area.appConfidence} />
-                    <SourceLink href={area.sources.rates} />
+                    {area.name} likely {area.appreciationPct}–{area.appreciationListingPct}%/yr{' '}
+                    <ConfBadge level={area.appConfidence} />
                   </span>
                 }
               >
@@ -472,17 +502,58 @@ export default function App() {
                   onChange={(v) => setAdv({ ...adv, appreciationPct: v })}
                   suffix="%/yr"
                 />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[
+                    ['Official records', area.appreciationPct],
+                    ['Asking-price trend', area.appreciationListingPct],
+                  ].map(([label, val]) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setAdv({ ...adv, appreciationPct: val })}
+                      className={`rounded-full px-3 py-1 text-xs transition ${
+                        adv.appreciationPct === val
+                          ? 'bg-teal-700 text-white'
+                          : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                      }`}
+                    >
+                      {label} {val}%
+                    </button>
+                  ))}
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowApprNote(!showApprNote)}
                   className="mt-1.5 text-xs text-teal-700 hover:underline"
                 >
-                  {showApprNote ? 'Hide' : 'Why this number?'}
+                  {showApprNote ? 'Hide' : 'Why this range?'}
                 </button>
                 {showApprNote && (
-                  <p className="mt-1 rounded-lg bg-stone-50 px-3 py-2 text-xs leading-relaxed text-stone-500">
-                    {area.notes} <span className="text-stone-400">({area.appConfidence} confidence)</span>
-                  </p>
+                  <div className="mt-1 space-y-1.5 rounded-lg bg-stone-50 px-3 py-2 text-xs leading-relaxed text-stone-500">
+                    <p>
+                      <strong className="text-stone-700">Official records say {CITY_APPRECIATION.officialPct}%.</strong>{' '}
+                      The RBI House Price Index, built from registered sale values, puts Bangalore
+                      at {CITY_APPRECIATION.officialPct}%/yr over the last {CITY_APPRECIATION.years} years
+                      (to {CITY_APPRECIATION.asOf}).{' '}
+                      <SourceLink href={HPI_SOURCE_URL} label="RBI data" title="RBI Database on Indian Economy" />
+                    </p>
+                    <p>
+                      <strong className="text-stone-700">Asking prices say closer to {CITY_APPRECIATION.listingPct}%.</strong>{' '}
+                      Listing-site trends, trimmed for the shift toward pricier new launches,
+                      average {CITY_APPRECIATION.listingPct}% across our areas.{' '}
+                      <SourceLink href={area.sources.rates} label="a listing portal" />
+                    </p>
+                    <p>
+                      Registered values often understate what was really paid, and asking prices
+                      overstate it, so the truth is likely between. We start at the official end.
+                      RBI publishes one figure for the whole city — how {area.name} differs from
+                      the average still comes from listings.
+                    </p>
+                    <p>
+                      <strong className="text-stone-700">{area.name}:</strong> {area.notes}{' '}
+                      <span className="text-stone-400">({area.appConfidence} confidence)</span>
+                    </p>
+                  </div>
                 )}
               </Field>
 
@@ -722,6 +793,20 @@ export default function App() {
             </div>
             <div className="mt-3 space-y-2 border-t border-white/20 pt-3 text-sm opacity-90">
               <div>
+                {rangeVerdicts.low === rangeVerdicts.high ? (
+                  <>
+                    {rangeVerdicts.low === 'buy' ? 'Buying' : 'Renting'} wins across the whole likely
+                    range of appreciation for {area.name} ({area.appreciationPct}–{area.appreciationListingPct}%).
+                  </>
+                ) : (
+                  <>
+                    <strong>This one is close.</strong> Renting wins at the official rate
+                    ({area.appreciationPct}%), buying wins at the asking-price trend
+                    ({area.appreciationListingPct}%).
+                  </>
+                )}
+              </div>
+              <div>
                 {tippingAppreciation === null ? (
                   <>Even at 30%/yr appreciation, renting still comes out ahead here.</>
                 ) : tippingAppreciation <= 0 ? (
@@ -830,25 +915,33 @@ export default function App() {
                   <strong className="text-stone-700">Prices</strong> come from listing
                   aggregators (a listing portal, a property portal, a rate-trends site), which run 10–30% above
                   registered transaction values. The mid leans toward a realistic deal
-                  price but still carries listing bias.
+                  price but still carries listing bias. Use <em>Discount off the asking
+                  price</em> to model what you expect to actually pay; each area links to its
+                  registered sale values so you can judge the gap yourself.
                 </p>
                 <p>
-                  <strong className="text-stone-700">Appreciation is the soft number.</strong>{' '}
-                  No official long-term price record exists for each area. Each rate is
-                  estimated from property-listing price trends over ~10 years, then trimmed by
-                  about 3 points toward the realistic ~8% city-wide average, adjusted for how
-                  much new supply each area has and how stretched its prices already are.
-                  Treat it as a defensible estimate, not a measurement — the confidence badge
-                  tells you how much to trust each area.
+                  <strong className="text-stone-700">Appreciation is a range, not a number.</strong>{' '}
+                  The low end is official: the RBI House Price Index, built from registered
+                  sale values, puts Bangalore at {CITY_APPRECIATION.officialPct}%/yr over the
+                  last {CITY_APPRECIATION.years} years (to {CITY_APPRECIATION.asOf}). The high
+                  end comes from ~10 years of listing-site price trends, trimmed by about 3
+                  points for the shift toward pricier new launches; that averages{' '}
+                  {CITY_APPRECIATION.listingPct}% across our areas. Registered values tend to
+                  understate real prices and asking prices overstate them, so the truth is
+                  likely between. The calculator starts at the official end.
                 </p>
                 <p>
-                  <strong className="text-stone-700">The boom is front-loaded.</strong> Roughly
-                  two-thirds of the last decade's gain happened in 2021–2025. These rates
-                  assume that surge roughly sustains — optimistic for peaked cores
-                  (Koramangala, Indiranagar), more plausible for corridors with live
-                  infrastructure (Sarjapur metro, the airport belt). That's exactly why the
-                  verdict card shows the appreciation rate where the answer flips — so you
-                  don't have to trust our single estimate.
+                  <strong className="text-stone-700">Only the city average is official.</strong>{' '}
+                  RBI publishes nothing below city level, so how one area differs from another
+                  still rests on listing trends, adjusted for new supply and how stretched
+                  prices already are. The confidence badge tells you how much to trust each
+                  area — and the verdict card shows the rate where the answer flips, so you
+                  don't have to trust our estimate at all.
+                </p>
+                <p>
+                  <strong className="text-stone-700">The past is not a forecast.</strong> In the
+                  official series Bangalore grew faster before 2020 than after it. A
+                  10-year average smooths that out; it does not predict the next ten.
                 </p>
                 <p>
                   <strong className="text-stone-700">Rents</strong> are set for the same kind

@@ -20,7 +20,9 @@ Most buy-vs-rent calculators hardcode a single appreciation number and ignore ta
 
 ## Methodology, in short
 
-Net-worth comparison with bidirectional difference-investing: whoever spends less each month invests the gap; net worth is compared at any horizon. Prices come from listing aggregators (which run above registry values); appreciation is estimated from ~10yr listing trends, trimmed toward the realistic city-wide average and weighted by supply. Rents are matched to the same segment the price describes. Full provenance in [`data-research-2026-06.md`](./data-research-2026-06.md).
+Net-worth comparison with bidirectional difference-investing: whoever spends less each month invests the gap; net worth is compared at any horizon. Prices come from listing aggregators (which run above registry values). Rents are matched to the same segment the price describes.
+
+**Appreciation is shown as a range.** The low end is official: the [RBI House Price Index](https://data.rbi.org.in/DBIE/#/dbie/home), built from registered sale values, puts Bangalore at 6.8% a year over the ten years to Q1 2026-27. The high end comes from ~10 years of listing-site trends, trimmed for launch-mix distortion, averaging 7.8% across the 20 areas. Registered values tend to understate real prices and asking prices overstate them, so the truth is likely between; the calculator starts at the official end and tells you when the verdict flips inside the range. RBI publishes nothing below city level, so the spread between areas still rests on listings. The index data and the calculation live in [`src/data/hpi.js`](./src/data/hpi.js). Full provenance in [`data-research-2026-06.md`](./data-research-2026-06.md).
 
 All India-specific policy (costs, tax, norms) lives in [`src/markets/india.js`](./src/markets/india.js) — the engine reads from it, so a future market is a config swap, not a rewrite.
 

@@ -93,3 +93,23 @@ Horamavu 6.0→6.5 · Thanisandra 9.0→8 · Kalyan Nagar 5.8→7 · Hennur 7.8�
 ### v2.1 sources
 - a listing portal locality rate pages (all 12, June 2026 snapshots)
 - a rental portal / a property portal / classifieds rent listings; a crowdsourced rent dataset median anchor
+
+## v3 pass (November 2026) — appreciation anchored on the RBI House Price Index
+
+Source: RBI Database on Indian Economy, House Price Index publication (downloaded 2026-11-14). Registration-based, city level only. Data and calculation in `src/data/hpi.js`.
+
+### Bangalore growth per year
+- 10 years to Q1 2026-27 (old and new series joined, four-quarter averages): **6.8%** — the anchor
+- FY2014-15 → FY2024-25, old series alone: 7.0%
+- FY2014-15 → FY2019-20: 8.2% · FY2019-20 → FY2024-25: 5.9%
+- New series (2022-23 base), FY2022-23 → FY2025-26: 6.5%; latest year to Q1 2026-27: 5.9%
+
+### What changed
+- Each area's listing-based figure is kept as the **high end** of a range. The default is that figure shifted down by 0.9 points, so the 20-area average equals the RBI rate (7.75% → 6.83%).
+- The earlier claim that ~2/3 of the decade's gain came in 2021–2025 is **withdrawn**. The official series shows faster growth before 2020 than after; the listing sites were most likely measuring the shift to pricier new launches.
+
+### Caveats
+- Registered values often understate the price actually paid, so 6.8% is best read as a floor.
+- One number for the whole city, all housing types mixed. Area-to-area differences still come from listings.
+- The window matters: the same method gives 4.7% over five years. Ten years was chosen to smooth a jumpy series (Bangalore fell 11% in one quarter of 2021-22).
+- The index was rebased in 2022-23. In the one overlapping year compared (FY2023-24 → FY2024-25) the old series grew 6.4% and the new one 7.7%.

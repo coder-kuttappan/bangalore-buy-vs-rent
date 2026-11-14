@@ -52,6 +52,7 @@ export function defaultsFor(areaName = DEFAULT_AREA, bhk = DEFAULT_BHK, sqft) {
 const FIELDS = {
   s: ['sqft', 'num'],
   p: ['pricePerSqft', 'num'],
+  disc: ['priceDiscountPct', 'num'],
   r: ['rentMonthly', 'num'],
   dep: ['securityDeposit', 'num'],
   dp: ['downPaymentPct', 'num'],
@@ -132,9 +133,15 @@ export function decodeScenario(fragment) {
   return scenario
 }
 
+// what the buyer actually pays: asking price less any discount they expect
+export function dealPrice(s) {
+  const discount = Math.min(Math.max(s.priceDiscountPct || 0, 0), 90)
+  return s.pricePerSqft * s.sqft * (1 - discount / 100)
+}
+
 // scenario -> the inputs simulate() expects
 export function toSimInputs(s) {
-  const price = s.pricePerSqft * s.sqft
+  const price = dealPrice(s)
   return {
     price,
     downPayment: price * s.downPaymentPct / 100,

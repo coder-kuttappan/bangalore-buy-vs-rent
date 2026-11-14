@@ -162,3 +162,31 @@ test('every area produces sane numbers on its defaults', () => {
     }
   }
 })
+
+test('official appreciation is the 10-year RBI growth rate for Bangalore', async () => {
+  const { officialAppreciation } = await import('../src/data/hpi.js')
+  const ten = officialAppreciation(10)
+  near(ten.pct, 6.83, 0.01) // pinned to the series as of Q1 2026-27; update when data is refreshed
+  assert.equal(ten.asOf, 'Q1.2026-27')
+  // a flat series grows 0%; one that doubles in 10 years grows ~7.18%/yr
+  const quarters = (fromYear, n, value) => Array.from({ length: n }, (_, i) => {
+    const y = fromYear + Math.floor(i / 4)
+    return [`Q${(i % 4) + 1}.${y}-${String((y + 1) % 100).padStart(2, '0')}`, value(i)]
+  })
+  const flatOld = quarters(2010, 52, () => 100), flatNew = quarters(2022, 16, () => 50)
+  near(officialAppreciation(10, flatOld, flatNew).pct, 0, 1e-9)
+  const doublingNew = quarters(2022, 16, (i) => 50 * Math.pow(2, i / 40))
+  const doublingOld = quarters(2010, 52, (i) => 100 * Math.pow(2, (i - 48) / 40))
+  near(officialAppreciation(10, doublingOld, doublingNew).pct, 7.177, 0.01)
+})
+
+test('each area starts at the official end of its appreciation range', async () => {
+  const { AREAS, CITY_APPRECIATION } = await import('../src/data/areas.js')
+  for (const a of AREAS) {
+    assert.ok(a.appreciationPct < a.appreciationListingPct, a.name)
+    assert.ok(a.appreciationPct > 3 && a.appreciationListingPct < 12, a.name)
+    assert.equal(defaultsFor(a.name).appreciationPct, a.appreciationPct)
+  }
+  const mean = AREAS.reduce((s, a) => s + a.appreciationPct, 0) / AREAS.length
+  near(mean, CITY_APPRECIATION.officialPct, 0.06) // area average matches the RBI city rate
+})

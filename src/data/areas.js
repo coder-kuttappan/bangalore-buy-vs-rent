@@ -8,6 +8,7 @@
 // derived from 2BHK ratios).
 
 import { MARKET } from '../markets/india.js'
+import { officialAppreciation } from './hpi.js'
 
 export const DATA_ASOF = 'June 2026'
 
@@ -19,9 +20,11 @@ export const DATA_ASOF = 'June 2026'
 // long-run (~10yr) capital-value CAGR — listing-platform 10yr indices haircut
 // ~3pp toward the ~8% citywide real blend, weighted by supply pressure and how
 // peaked each market is. appConfidence rates that CAGR specifically.
-// Two structural caveats: (1) ~2/3 of the 10yr gain everywhere happened
-// 2021–2025, so these CAGRs assume the post-COVID surge roughly sustains;
-// (2) appreciation is the weaker deliverable — no clean registry series exists.
+// These listing-based figures are the HIGH end of the range the calculator
+// shows; see the RBI anchoring further down for the default it starts from.
+// (An earlier note here said most of the decade's gain came in 2021–2025. The
+// RBI series shows the opposite — faster growth before 2020 than after — so
+// that claim was a listing-mix artefact and has been dropped.)
 export const AREAS = [
   { name: 'Whitefield',      pricePerSqft: { low: 9500,  mid: 12500, high: 16000 }, rent2bhk: { low: 28000, mid: 35000 }, rent3bhk: { low: 40000, mid: 55000 }, rentNew: { '2 BHK': 48000, '3 BHK': 70000 }, appreciationPct: 8,   appConfidence: 'med-high', confidence: 'high', notes: 'Skews new-launch; resale 9.5–11k, new launches 13–17k. Mature, high new-supply' },
   { name: 'HSR Layout',      pricePerSqft: { low: 9000,  mid: 12750, high: 16000 }, rent2bhk: { low: 30000, mid: 38000 }, rent3bhk: { low: 45000, mid: 60000 }, rentNew: { '2 BHK': 50000, '3 BHK': 72000 }, appreciationPct: 9,   appConfidence: 'med',      confidence: 'med',  notes: 'Land-constrained, low new-apt supply = genuinely strong; listings ~70% above registry' },
@@ -48,6 +51,32 @@ export const AREAS = [
   { name: 'KR Puram',          pricePerSqft: { low: 6600,  mid: 8500,  high: 12150 }, rent2bhk: { low: 18000, mid: 24000 }, rent3bhk: { low: 28000, mid: 35000 }, rentNew: { '2 BHK': 31000, '3 BHK': 44000 }, appreciationPct: 8,   appConfidence: 'med', confidence: 'med',  notes: 'Best-connected east hub (Purple Line + railway), strong Whitefield-worker rental demand; mixed build quality' },
 ]
 
+// ── Appreciation: an official low end and a listing-based high end ─────────
+// The per-area figures above come from asking-price trends on listing sites
+// (already trimmed for launch-mix distortion). The RBI House Price Index —
+// built from registered sale values — puts the whole city lower. Registered
+// values tend to understate what was actually paid, and asking prices tend to
+// overstate it, so we treat the two as the ends of a range:
+//   appreciationListingPct = the listing-based estimate (high end)
+//   appreciationPct        = the same figure shifted down so that the average
+//                            across all areas equals the RBI city rate (low
+//                            end, and the default the calculator starts from)
+// RBI publishes nothing below city level, so the spread between areas still
+// comes from listings; only the city average is official.
+const round1 = (n) => Math.round(n * 10) / 10
+const official = officialAppreciation(10)
+const listingAverage = AREAS.reduce((sum, a) => sum + a.appreciationPct, 0) / AREAS.length
+AREAS.forEach((a) => {
+  a.appreciationListingPct = a.appreciationPct
+  a.appreciationPct = round1(a.appreciationPct - (listingAverage - official.pct))
+})
+export const CITY_APPRECIATION = {
+  officialPct: round1(official.pct),   // RBI, registered sale values
+  listingPct: round1(listingAverage),  // average of our listing-based area estimates
+  years: official.years,
+  asOf: official.asOf.replace('.', ' '), // e.g. 'Q1 2026-27'
+}
+
 export const BHK_PRESETS = [
   { label: '1 BHK', sqft: 650 },
   { label: '2 BHK', sqft: 1150 },
@@ -72,6 +101,7 @@ export const DEFAULTS = {
   stampDutyPct: MARKET.cost.stampDutyPct,
   registrationPct: MARKET.cost.registrationPct,
   sellingCostPct: MARKET.cost.sellingCostPct,
+  priceDiscountPct: 0,   // % the buyer expects to pay below the asking price
   propertyType: 'ready', // 'ready' (0% GST) | 'under-construction'
   interiorsBudget: Math.round(DEFAULT_SQFT * MARKET.cost.interiorsPerSqft), // total ₹; per-sqft derived in UI
   // recurring (from market) — maintenance & tax scale with size, recomputed live
@@ -132,10 +162,14 @@ const SLUGS = {
   'Tumkur Road': 'tumkur-road-bangalore-west',
   'KR Puram': 'kr-puram-bangalore-east',
 }
+// a property portal locality pages show registered sale values (from government
+// registration records) next to asking prices. We link to them rather than
+// copy the figures. Their slug is the area name, lower-cased and hyphenated.
 AREAS.forEach((a) => {
   const slug = SLUGS[a.name]
   a.sources = {
     rates: `https://portal.example/`,
     rent: `https://portal.example/`,
+    registered: `https://portal.example/`,
   }
 })
