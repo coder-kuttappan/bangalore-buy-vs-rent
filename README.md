@@ -43,7 +43,17 @@ Tests run before every deploy; a failing test stops the site from updating.
 
 ## Stack
 
-React + Vite + Tailwind v4 + Recharts. Fully client-side — no backend, no tracking, no data leaves your browser.
+React + Vite + Tailwind v4 + Recharts. The calculator runs entirely in your browser, with no tracking.
+
+## Shared quotes and the open dataset
+
+Someone with a real quote can choose to add it to an open dataset. Only this is sent, and only when they press the button: area, flat size, price and/or rent, price tier, an optional project name, and the month. Salary, tax, down payment and loan details are never sent, and IP addresses are not stored.
+
+- An area's median appears on the site once it has five quotes.
+- Unusual quotes are held for a person to check before they are published.
+- The dataset is downloadable as CSV from the API (`/quotes.csv`); a project is named only once three people have quoted it.
+- The API is a small Cloudflare Worker with a D1 database, in [`worker/`](./worker).
+- Project names for the picker come from OpenStreetMap (© OpenStreetMap contributors, ODbL), built by [`scripts/fetch-projects.mjs`](./scripts/fetch-projects.mjs).
 
 ## Licence
 

@@ -82,3 +82,28 @@ test('the open dataset names a project only when several people have quoted it',
   assert.equal(csv[2], '2026-11,Horamavu,2 BHK,1000,6000,25000,mid,"Busy ""Park"", Phase 1",13.01,77.61')
   assert.equal(csv.length, 5)
 })
+
+test('the page sends only the chosen fields', async () => {
+  const { quotePayload, versusMedian, suggestProjects } = await import('../src/lib/quotes.js')
+  const base = { area: 'Horamavu', bhk: '2 BHK', sqft: 1150, pricePerSqft: 9800, rentMonthly: 38000, tier: 'high' }
+  assert.deepEqual(
+    quotePayload({ ...base, sharePrice: true, shareRent: false, project: { name: '' }, salary: 1, marginalTaxPct: 30 }),
+    { area: 'Horamavu', bhk: '2 BHK', sqft: 1150, pricePerSqft: 9800, tier: 'high' },
+  )
+  assert.deepEqual(
+    quotePayload({ ...base, sharePrice: false, shareRent: true, project: { name: 'Prestige Gulmohar', lat: 13.029, lon: 77.6651 } }).project,
+    { name: 'Prestige Gulmohar', lat: 13.029, lon: 77.6651 },
+  )
+  assert.deepEqual(quotePayload({ ...base, sharePrice: true, shareRent: true, project: { name: ' Typed Name ' } }).project, { name: 'Typed Name' })
+  // what the page sends passes the server's own check
+  assert.equal(checkQuote(quotePayload({ ...base, sharePrice: true, shareRent: true, project: null }), known).ok, true)
+
+  assert.equal(versusMedian(108, 100), '8% above')
+  assert.equal(versusMedian(95, 100), '5% below')
+  assert.equal(versusMedian(100.2, 100), 'in line with')
+  assert.equal(versusMedian(100, null), null)
+
+  const list = [['Sobha Prestige View', 1, 2], ['Prestige Gulmohar', 3, 4], ['Prestige Shantiniketan', 5, 6], ['Brigade Gateway', 7, 8]]
+  assert.deepEqual(suggestProjects(list, 'pres').map((p) => p[0]), ['Prestige Gulmohar', 'Prestige Shantiniketan', 'Sobha Prestige View'])
+  assert.deepEqual(suggestProjects(list, 'p'), [])
+})

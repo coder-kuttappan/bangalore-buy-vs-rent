@@ -15,6 +15,8 @@ import {
   investOption, compareAreas, FD_RETURN, EQUITY_RETURN,
 } from './lib/scenario'
 import Compare from './Compare'
+import ShareQuote from './ShareQuote'
+import { sharingEnabled, fetchStats } from './lib/quotes'
 
 // the "advanced" slice of a scenario — everything held in the adv state object
 const advFrom = (scenario) =>
@@ -134,6 +136,10 @@ export default function App() {
   const [downPaymentPct, setDownPaymentPct] = useState(initial.downPaymentPct)
   const [adv, setAdv] = useState(() => advFrom(initial))
   const [copied, setCopied] = useState(false)
+  // shared-quote medians per area, when the quotes API is configured
+  const [quoteStats, setQuoteStats] = useState(null)
+  const loadQuoteStats = () => { fetchStats().then(setQuoteStats).catch(() => {}) }
+  useEffect(() => { if (sharingEnabled) loadQuoteStats() }, [])
   const [showAdv, setShowAdv] = useState(false)
   const [showCosts, setShowCosts] = useState(false)
   const [showMethod, setShowMethod] = useState(false)
@@ -995,6 +1001,26 @@ export default function App() {
               </div>
             ))}
           </div>
+
+          {sharingEnabled && (
+            <ShareQuote
+              key={areaName}
+              area={areaName}
+              bhk={bhk}
+              sqft={sqft}
+              pricePerSqft={pricePerSqft}
+              rentMonthly={rentMonthly}
+              tier={TIERS.map(([t]) => t).find((t) => area.pricePerSqft[t] === pricePerSqft) || null}
+              areaStats={quoteStats?.areas?.[areaName] || null}
+              minimumToShow={quoteStats?.minimumToShow ?? 5}
+              onShared={(result) => {
+                // show the new count straight away rather than waiting for the cached summary
+                if (result?.area) {
+                  setQuoteStats((prev) => ({ ...(prev || {}), areas: { ...(prev?.areas || {}), [areaName]: result.area } }))
+                }
+              }}
+            />
+          )}
 
           <div className="rounded-2xl bg-white p-5 shadow-sm">
             <div className="mb-3 text-sm font-medium text-stone-700">
