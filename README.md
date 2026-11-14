@@ -8,7 +8,7 @@ Most buy-vs-rent calculators hardcode a single appreciation number and ignore ta
 
 ## What it does
 
-- **20 Bangalore areas** with researched June 2026 price, rent and appreciation defaults — each with a confidence rating and a link to its source.
+- **20 Bangalore areas** with researched June 2026 price, rent and appreciation defaults — each with a confidence rating and an explanation of where the number comes from.
 - **Month-by-month net-worth simulation:** buying (with leverage) vs renting and investing the difference — not a naive EMI-vs-rent comparison.
 - **Invest-discipline slider:** models the truth that the renter only wins if they actually invest the gap (an EMI is forced savings; most people don't invest the difference).
 - **True break-even** (window-independent) with the calendar year it lands in.

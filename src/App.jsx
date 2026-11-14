@@ -32,7 +32,7 @@ function ConfBadge({ level }) {
   )
 }
 
-function SourceLink({ href, label = 'source', title = 'See the market source (a listing portal)' }) {
+function SourceLink({ href, label = 'source', title }) {
   return (
     <a
       href={href}
@@ -397,17 +397,13 @@ export default function App() {
                 <span className="inline-flex items-center gap-1.5">
                   range {inr(area.pricePerSqft.low)}–{inr(area.pricePerSqft.high)}{' '}
                   <ConfBadge level={area.confidence} />
-                  <SourceLink href={area.sources.rates} />
                 </span>
               }
             >
               <Num value={pricePerSqft} onChange={setPricePerSqft} step={100} suffix="₹/sqft" />
             </Field>
 
-            <Field
-              label="Discount off the asking price"
-              hint={<SourceLink href={area.sources.registered} label="registered sale prices" title="Registered sale values for this area (a property portal)" />}
-            >
+            <Field label="Discount off the asking price">
               <Num
                 value={adv.priceDiscountPct}
                 step={5}
@@ -443,11 +439,7 @@ export default function App() {
 
             <Field
               label="Monthly rent for an equivalent home"
-              hint={
-                <span className="inline-flex items-center gap-1.5">
-                  typical {inr(defaultRent(area, bhk))} <SourceLink href={area.sources.rent} />
-                </span>
-              }
+              hint={`typical ${inr(defaultRent(area, bhk))}`}
               dirty={rentMonthly !== defaultRent(area, bhk)}
               onReset={() => setRentMonthly(defaultRent(area, bhk))}
             >
@@ -540,8 +532,7 @@ export default function App() {
                     <p>
                       <strong className="text-stone-700">Asking prices say closer to {CITY_APPRECIATION.listingPct}%.</strong>{' '}
                       Listing-site trends, trimmed for the shift toward pricier new launches,
-                      average {CITY_APPRECIATION.listingPct}% across our areas.{' '}
-                      <SourceLink href={area.sources.rates} label="a listing portal" />
+                      average {CITY_APPRECIATION.listingPct}% across our areas.
                     </p>
                     <p>
                       Registered values often understate what was really paid, and asking prices
@@ -916,8 +907,7 @@ export default function App() {
                   aggregators (a listing portal, a property portal, a rate-trends site), which run 10–30% above
                   registered transaction values. The mid leans toward a realistic deal
                   price but still carries listing bias. Use <em>Discount off the asking
-                  price</em> to model what you expect to actually pay; each area links to its
-                  registered sale values so you can judge the gap yourself.
+                  price</em> to model what you expect to actually pay.
                 </p>
                 <p>
                   <strong className="text-stone-700">Appreciation is a range, not a number.</strong>{' '}

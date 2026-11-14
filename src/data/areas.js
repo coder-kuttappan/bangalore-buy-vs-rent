@@ -134,42 +134,4 @@ const NON_GATED = {
 }
 AREAS.forEach((a) => { a.segment = NON_GATED[a.name] || 'New gated apartment' })
 
-// a listing portal locality slugs. The rates page (price + 1/3/5/10yr appreciation trend)
-// and the rentals page share one slug per area, so we generate both URLs from
-// this map. For a handful of areas (Tumkur Road price, Hebbal/Varthur
-// appreciation, Devanahalli) the page's headline figure was deliberately
-// overridden/haircut in our data — the per-area `notes` explain why, so the
-// link is the underlying market source, not a claim that it equals our number.
-const SLUGS = {
-  'Whitefield': 'whitefield-bangalore-east',
-  'HSR Layout': 'hsr-layout-bangalore-south',
-  'Koramangala': 'koramangala-bangalore-south',
-  'Sarjapur Road': 'sarjapur-road-bangalore-east',
-  'Indiranagar': 'indiranagar-bangalore-east',
-  'Hebbal': 'hebbal-bangalore-north',
-  'Yelahanka': 'yelahanka-bangalore-north',
-  'Electronic City': 'electronic-city-bangalore-south',
-  'Horamavu': 'horamavu-bangalore-east',
-  'Thanisandra': 'thanisandra-bangalore-north',
-  'Kalyan Nagar': 'kalyan-nagar-bangalore-east',
-  'Hennur': 'hennur-road-bangalore-north',
-  'Banaswadi': 'banaswadi-bangalore-east',
-  'Kadugodi': 'kadugodi-bangalore-east',
-  'Varthur': 'varthur-bangalore-east',
-  'Bannerghatta Road': 'bannerghatta-road-bangalore-south',
-  'JP Nagar': 'jp-nagar-bangalore-south',
-  'Devanahalli': 'devanahalli-bangalore-north',
-  'Tumkur Road': 'tumkur-road-bangalore-west',
-  'KR Puram': 'kr-puram-bangalore-east',
-}
-// a property portal locality pages show registered sale values (from government
-// registration records) next to asking prices. We link to them rather than
-// copy the figures. Their slug is the area name, lower-cased and hyphenated.
-AREAS.forEach((a) => {
-  const slug = SLUGS[a.name]
-  a.sources = {
-    rates: `https://portal.example/`,
-    rent: `https://portal.example/`,
-    registered: `https://portal.example/`,
-  }
-})
+// Sources are named in plain text in the methodology panel.
