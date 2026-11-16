@@ -17,8 +17,8 @@ function circle(centre, km = 1.4, steps = 28) {
   })
 }
 
-// colourFor(areaName) -> fill colour; labelFor(areaName) -> short text on the map
-export default function AreaMap({ data, colourFor, labelFor, selected, onHover, onPick }) {
+// colourFor(area) -> fill colour; labelFor(area) -> number on the map; tipFor(area) -> hover text
+export default function AreaMap({ data, colourFor, labelFor, tipFor, selected, onHover, onPick }) {
   const holder = useRef(null)
   const mapRef = useRef(null)
   const shapes = useRef({}) // area name -> its polygons
@@ -74,13 +74,14 @@ export default function AreaMap({ data, colourFor, labelFor, selected, onHover, 
       if (isSelected) layer.bringToFront()
       const el = labels.current[area]?.getElement()
       if (el) el.innerHTML = `<span>${labelFor(area)}</span>`
+      layer.setTooltipContent(tipFor(area))
     }
   })
 
   return (
     <div
       ref={holder}
-      className="h-[420px] w-full overflow-hidden rounded-xl sm:h-[520px]"
+      className="area-map w-full overflow-hidden rounded-xl"
       role="application"
       aria-label="Map of Bangalore with areas shaded by years until buying pulls ahead"
     />

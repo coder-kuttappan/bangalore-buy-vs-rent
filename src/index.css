@@ -36,3 +36,9 @@ textarea {
 @media (max-width: 640px) {
   .area-label span { font-size: 10px; padding: 0 4px; }
 }
+/* Map size: full width on a phone; on a wide screen a square sized to the
+   window, so the whole section fits on one screen beside its explanation. */
+.area-map { height: 380px; }
+@media (min-width: 1024px) {
+  .area-map { height: clamp(340px, calc(100vh - 210px), 640px); width: clamp(340px, calc(100vh - 210px), 640px); }
+}
