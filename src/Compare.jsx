@@ -1,42 +1,20 @@
-import { useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { inrFull, years } from './lib/format'
 import { FD_RETURN, EQUITY_RETURN } from './lib/scenario'
 
-// Where each area sits on the tile map: [row, column], laid out roughly as the
-// city is — north at the top, east on the right. Short names fit a phone tile.
-const TILES = {
-  'Devanahalli': [0, 3, 'Devanahalli'],
-  'Yelahanka': [1, 2, 'Yelahanka'],
-  'Thanisandra': [1, 3, 'Thanisandra'],
-  'Tumkur Road': [2, 0, 'Tumkur Road'],
-  'Hebbal': [2, 2, 'Hebbal'],
-  'Hennur': [2, 3, 'Hennur'],
-  'Horamavu': [2, 4, 'Horamavu'],
-  'Kalyan Nagar': [3, 3, 'Kalyan Nagar'],
-  'Banaswadi': [3, 4, 'Banaswadi'],
-  'KR Puram': [3, 5, 'KR Puram'],
-  'Indiranagar': [4, 3, 'Indiranagar'],
-  'Whitefield': [4, 4, 'Whitefield'],
-  'Kadugodi': [4, 5, 'Kadugodi'],
-  'Koramangala': [5, 2, 'Koramangala'],
-  'HSR Layout': [5, 3, 'HSR'],
-  'Sarjapur Road': [5, 4, 'Sarjapur Road'],
-  'Varthur': [5, 5, 'Varthur'],
-  'JP Nagar': [6, 1, 'JP Nagar'],
-  'Bannerghatta Road': [6, 2, 'Bannerghatta'],
-  'Electronic City': [6, 3, 'E-City'],
-}
+// the map and its library load only when this section is shown
+const AreaMap = lazy(() => import('./AreaMap'))
 
 // One hue, darker = buying pulls ahead sooner. "Never" is neutral grey.
 // Every tile also prints its number, so colour is never the only signal.
 const STEPS = [
-  { upTo: 6, label: 'under 6 yrs', tile: 'bg-teal-800 text-white' },
-  { upTo: 8, label: '6–8', tile: 'bg-teal-600 text-white' },
-  { upTo: 10, label: '8–10', tile: 'bg-teal-400 text-stone-900' },
-  { upTo: 15, label: '10–15', tile: 'bg-teal-200 text-stone-900' },
-  { upTo: Infinity, label: '15+', tile: 'bg-teal-50 text-stone-900 ring-1 ring-inset ring-teal-200' },
+  { upTo: 6, label: 'under 6 yrs', hex: '#115e59', tile: 'bg-teal-800' },
+  { upTo: 8, label: '6–8', hex: '#0d9488', tile: 'bg-teal-600' },
+  { upTo: 10, label: '8–10', hex: '#2dd4bf', tile: 'bg-teal-400' },
+  { upTo: 15, label: '10–15', hex: '#99f6e4', tile: 'bg-teal-200' },
+  { upTo: Infinity, label: '15+', hex: '#f0fdfa', tile: 'bg-teal-50 ring-1 ring-inset ring-teal-300' },
 ]
-const NEVER = { label: 'never (40+)', tile: 'bg-stone-200 text-stone-700' }
+const NEVER = { label: 'never (40+)', hex: '#a8a29e', tile: 'bg-stone-400' }
 const stepFor = (be) => (be === null ? NEVER : STEPS.find((s) => be < s.upTo))
 const short = (be) => (be === null ? '40+' : be < 10 ? be.toFixed(1) : String(Math.round(be)))
 
@@ -55,6 +33,11 @@ export default function Compare({ rows, bhk, selected, onPick }) {
   const [kind, setKind] = useState('fd')
   const [showList, setShowList] = useState(false)
   const [hover, setHover] = useState(null)
+  const [mapData, setMapData] = useState(null)
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}map.json`).then((r) => r.json()).then(setMapData).catch(() => setMapData(false))
+  }, [])
+  const byName = Object.fromEntries(rows.map((r) => [r.name, r]))
   const focus = rows.find((r) => r.name === (hover || selected))
 
   return (
@@ -84,38 +67,24 @@ export default function Compare({ rows, bhk, selected, onPick }) {
         ))}
       </div>
 
-      <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,560px)_1fr]">
+      <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div>
-          <div
-            className="grid gap-1 sm:gap-1.5"
-            style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }}
-            role="group"
-            aria-label="Areas of Bangalore, coloured by years until buying pulls ahead"
-          >
-            {rows.map((r) => {
-              const [row, col, label] = TILES[r.name]
-              const be = r[kind].breakEven
-              return (
-                <button
-                  key={r.name}
-                  type="button"
-                  onClick={() => onPick(r.name)}
-                  onMouseEnter={() => setHover(r.name)}
-                  onMouseLeave={() => setHover(null)}
-                  onFocus={() => setHover(r.name)}
-                  onBlur={() => setHover(null)}
-                  title={`${r.name}: ${be === null ? 'buying never catches up' : `buying pulls ahead after ${years(be)}`}`}
-                  style={{ gridRow: row + 1, gridColumn: col + 1 }}
-                  className={`flex aspect-square flex-col items-center justify-center overflow-hidden rounded-lg text-center transition
-                    hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900
-                    ${stepFor(be).tile} ${r.name === selected ? 'outline outline-2 outline-offset-1 outline-stone-900' : ''}`}
-                >
-                  <span className="text-base font-semibold leading-none sm:text-xl">{short(be)}</span>
-                  <span className="mt-0.5 w-full text-[7.5px] leading-[1.1] tracking-tighter opacity-90 sm:text-[11px] sm:tracking-normal">{label}</span>
-                </button>
-              )
-            })}
-          </div>
+          {mapData === false ? (
+            <p className="rounded-xl bg-stone-50 p-4 text-sm text-stone-500">
+              The map could not be loaded. The list below has the same numbers.
+            </p>
+          ) : (
+            <Suspense fallback={<div className="h-[420px] rounded-xl bg-stone-100 sm:h-[520px]" />}>
+              <AreaMap
+                data={mapData}
+                selected={selected}
+                colourFor={(name) => stepFor(byName[name][kind].breakEven).hex}
+                labelFor={(name) => short(byName[name][kind].breakEven)}
+                onHover={setHover}
+                onPick={onPick}
+              />
+            </Suspense>
+          )}
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-500">
             <span>Years until buying pulls ahead:</span>
             {[...STEPS, NEVER].map((s) => (
@@ -125,7 +94,16 @@ export default function Compare({ rows, bhk, selected, onPick }) {
               </span>
             ))}
           </div>
-          <p className="mt-1 text-xs text-stone-400">North is up, east is right. Positions are approximate.</p>
+          <p className="mt-1 text-xs text-stone-400">
+            Shaded patches are the wards we count as each area — our own grouping, since these
+            areas have no official borders. Unshaded parts of the city have no estimate yet.
+            Circles mark areas outside the city boundary.
+            {mapData && rows.filter((r) => mapData.areas[r.name]?.centre[0] > 13.16).map((r) => (
+              <span key={r.name}>
+                {' '}{r.name} is north of this view ({r[kind].breakEven === null ? 'never' : years(r[kind].breakEven)}) — drag the map down to see it.
+              </span>
+            ))}
+          </p>
         </div>
 
         {focus && (
