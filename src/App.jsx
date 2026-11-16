@@ -526,6 +526,29 @@ export default function App() {
               <Num value={rentMonthly} onChange={setRentMonthly} step={1000} suffix="₹/mo" />
             </Field>
 
+            {sharingEnabled && (
+              <ShareQuote
+                key={areaName}
+                area={areaName}
+                bhk={bhk}
+                sqft={sqft}
+                pricePerSqft={pricePerSqft}
+                rentMonthly={rentMonthly}
+                priceChanged={!TIERS.some(([t]) => area.pricePerSqft[t] === pricePerSqft)}
+                rentChanged={rentMonthly !== defaultRent(area, bhk)
+                  && !TIERS.some(([t]) => rentMonthly === Math.round(defaultRent(area, bhk) * area.pricePerSqft[t] / area.pricePerSqft.mid / 500) * 500)}
+                tierFromPrice={TIERS.map(([t]) => t).find((t) => area.pricePerSqft[t] === pricePerSqft) || null}
+                areaStats={quoteStats?.areas?.[areaName] || null}
+                minimumToShow={quoteStats?.minimumToShow ?? 5}
+                onShared={(result) => {
+                  // show the new count straight away rather than waiting for the cached summary
+                  if (result?.area) {
+                    setQuoteStats((prev) => ({ ...(prev || {}), areas: { ...(prev?.areas || {}), [areaName]: result.area } }))
+                  }
+                }}
+              />
+            )}
+
             <div className="border-t border-stone-100 pt-4 space-y-4">
               <div className="text-xs font-semibold uppercase tracking-wide text-stone-400">
                 The two numbers that decide this
@@ -1031,33 +1054,6 @@ export default function App() {
               </div>
             ))}
           </div>
-
-          {sharingEnabled && (
-            <ShareQuote
-              key={areaName}
-              area={areaName}
-              bhk={bhk}
-              calcSqft={sqft}
-              calcPrice={pricePerSqft}
-              calcRent={rentMonthly}
-              areaStats={quoteStats?.areas?.[areaName] || null}
-              minimumToShow={quoteStats?.minimumToShow ?? 5}
-              onApply={(q) => {
-                if (q.pricePerSqft) setPricePerSqft(q.pricePerSqft)
-                if (q.rentMonthly) {
-                  setRentMonthly(q.rentMonthly)
-                  setSecurityDeposit(MARKET.renting.securityDepositMonths * q.rentMonthly)
-                }
-                if (q.sqft) setSqft(q.sqft)
-              }}
-              onShared={(result) => {
-                // show the new count straight away rather than waiting for the cached summary
-                if (result?.area) {
-                  setQuoteStats((prev) => ({ ...(prev || {}), areas: { ...(prev?.areas || {}), [areaName]: result.area } }))
-                }
-              }}
-            />
-          )}
 
           <div className="rounded-2xl bg-white p-5 shadow-sm">
             <div className="mb-3 text-sm font-medium text-stone-700">

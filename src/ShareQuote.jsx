@@ -12,27 +12,22 @@ const TIER_CHOICES = [
 const inputClass = `mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-base
   focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600 sm:text-sm`
 
-// A number typed into a box: '' means "not given", anything else must be a positive number
-const typed = (text) => {
-  const n = Number(text)
-  return text.trim() !== '' && Number.isFinite(n) && n > 0 ? n : null
-}
-
-// Lets someone with a real quote add it to the open dataset. The quote is
-// typed here, not taken from the calculator, so our starting estimates are
-// never sent back to us as if they were real. Shows exactly what will be sent.
-export default function ShareQuote({ area, bhk, calcSqft, calcPrice, calcRent, areaStats, minimumToShow, onApply, onShared }) {
+// Sits in the scenario card, right under the price and rent the user has
+// typed. Those boxes are where a quote is entered; this only offers to share
+// it. A number still equal to our starting estimate is not offered, so our own
+// estimates are never sent back to us as if they were real.
+export default function ShareQuote({
+  area, bhk, sqft, pricePerSqft, rentMonthly, priceChanged, rentChanged, tierFromPrice, areaStats, minimumToShow, onShared,
+}) {
   const [open, setOpen] = useState(false)
-  const [price, setPrice] = useState('')
-  const [rent, setRent] = useState('')
-  const [sqft, setSqft] = useState(String(calcSqft))
+  const [matchesEstimate, setMatchesEstimate] = useState(false) // "my quote happens to equal your estimate"
   const [tier, setTier] = useState('')
   const [projectText, setProjectText] = useState('')
   const [project, setProject] = useState(null) // a pick from the list, with its position
   const [projects, setProjects] = useState(null)
   const [state, setState] = useState({ status: 'idle' }) // idle | sending | done | error
 
-  // the project list is only fetched when someone opens this card
+  // the project list is only fetched when someone opens this
   useEffect(() => {
     if (!open || projects) return
     fetch(`${import.meta.env.BASE_URL}projects.json`)
@@ -41,14 +36,12 @@ export default function ShareQuote({ area, bhk, calcSqft, calcPrice, calcRent, a
       .catch(() => setProjects([]))
   }, [open, projects])
 
-  const pricePerSqft = typed(price)
-  const rentMonthly = typed(rent)
-  const size = typed(sqft)
-  const ready = size !== null && (pricePerSqft !== null || rentMonthly !== null)
+  const sharePrice = priceChanged || matchesEstimate
+  const shareRent = rentChanged || matchesEstimate
+  const ready = sharePrice || shareRent
   const suggestions = project ? [] : suggestProjects(projects || [], projectText)
   const payload = quotePayload({
-    area, bhk, sqft: size, pricePerSqft, rentMonthly, tier: tier || null,
-    sharePrice: pricePerSqft !== null, shareRent: rentMonthly !== null,
+    area, bhk, sqft, pricePerSqft, rentMonthly, tier: tier || tierFromPrice || null, sharePrice, shareRent,
     project: project || { name: projectText },
   })
 
@@ -63,71 +56,44 @@ export default function ShareQuote({ area, bhk, calcSqft, calcPrice, calcRent, a
     }
   }
 
-  const priceVs = areaStats?.medianPricePerSqft ? versusMedian(pricePerSqft ?? calcPrice, areaStats.medianPricePerSqft) : null
-  const rentVs = areaStats?.medianRentPerSqft
-    ? versusMedian((rentMonthly ?? calcRent) / (size ?? calcSqft), areaStats.medianRentPerSqft)
-    : null
+  const priceVs = areaStats?.medianPricePerSqft ? versusMedian(pricePerSqft, areaStats.medianPricePerSqft) : null
+  const rentVs = areaStats?.medianRentPerSqft ? versusMedian(rentMonthly / sqft, areaStats.medianRentPerSqft) : null
 
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-sm">
-      {areaStats ? (
-        <div className="mb-4 rounded-lg bg-teal-50 px-3 py-2 text-sm text-stone-700">
+    <div className="rounded-xl border border-stone-200 p-3 text-sm">
+      {areaStats && (
+        <p className="mb-2 text-stone-700">
           <strong>{areaStats.quotes} people</strong> have shared real quotes for {area}.
-          {priceVs && <> Your price is <strong>{priceVs}</strong> the median of {inrFull(areaStats.medianPricePerSqft)}/sqft.</>}
-          {rentVs && <> Your rent is <strong>{rentVs}</strong> the median.</>}
-        </div>
-      ) : null}
+          {priceVs && <> Your price is <strong>{priceVs}</strong> their median of {inrFull(areaStats.medianPricePerSqft)}/sqft.</>}
+          {rentVs && <> Your rent is <strong>{rentVs}</strong> their median.</>}
+        </p>
+      )}
 
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between text-left text-sm font-medium text-stone-700"
-      >
-        <span>
-          Have a real quote for {area}? Add it to the open dataset
-          <span className="block text-xs font-normal text-stone-400">
-            Anonymous. It helps the next person see what flats here really cost.
-          </span>
-        </span>
-        <span className="text-stone-400">{open ? '−' : '+'}</span>
-      </button>
-
-      {open && state.status !== 'done' && (
-        <div className="mt-4 space-y-3 text-sm">
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block text-stone-700">
-              Price you were quoted
-              <input type="number" inputMode="numeric" min="0" value={price} placeholder="₹ per sqft"
-                onChange={(e) => setPrice(e.target.value)} className={inputClass} />
-            </label>
-            <label className="block text-stone-700">
-              Rent you were quoted
-              <input type="number" inputMode="numeric" min="0" value={rent} placeholder="₹ per month"
-                onChange={(e) => setRent(e.target.value)} className={inputClass} />
-            </label>
-            <label className="block text-stone-700">
-              Flat size ({bhk})
-              <input type="number" inputMode="numeric" min="0" value={sqft} placeholder="sqft"
-                onChange={(e) => setSqft(e.target.value)} className={inputClass} />
-            </label>
-            <label className="block text-stone-700">
-              Kind of flat
-              <select value={tier} onChange={(e) => setTier(e.target.value)} className={inputClass}>
-                {TIER_CHOICES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
-            </label>
-          </div>
-          <p className="text-xs text-stone-400">
-            Fill in the price, the rent, or both — whichever you have a real figure for.{' '}
-            <button
-              type="button"
-              onClick={() => { setPrice(String(calcPrice)); setRent(String(calcRent)); setSqft(String(calcSqft)) }}
-              className="text-teal-700 underline decoration-dotted"
-            >
-              Copy the numbers from the calculator
-            </button>{' '}
-            if you already typed your quote there.
-          </p>
-
+      {state.status === 'done' ? (
+        <p className="text-stone-700">
+          <strong>Thank you — added.</strong>{' '}
+          {state.result.published
+            ? state.result.area
+              ? `${area} now has ${state.result.area.quotes} shared quotes.`
+              : `We show an area's numbers once it has ${state.result.minimumToShow ?? minimumToShow} quotes; ${area} isn't there yet.`
+            : 'It looked a little unusual, so a person will check it before it is published.'}
+        </p>
+      ) : !ready ? (
+        <p className="text-xs text-stone-500">
+          <strong className="text-stone-700">Got a real quote?</strong> Type its price or rent in the
+          boxes above, and you can add it to the open dataset to help the next person.{' '}
+          <button type="button" onClick={() => { setMatchesEstimate(true); setOpen(true) }} className="text-teal-700 underline decoration-dotted">
+            My quote already matches these numbers
+          </button>
+        </p>
+      ) : !open ? (
+        <button type="button" onClick={() => setOpen(true)} className="w-full text-left">
+          <span className="font-medium text-teal-700">Is this a real quote? Add it to the open dataset →</span>
+          <span className="block text-xs text-stone-400">Anonymous. It helps the next person see what flats here really cost.</span>
+        </button>
+      ) : (
+        <div className="space-y-3">
+          <div className="font-medium text-stone-700">Add this quote to the open dataset</div>
           <div className="relative">
             <label className="block text-stone-700">
               Project or building <span className="text-stone-400">(optional)</span>
@@ -158,63 +124,57 @@ export default function ShareQuote({ area, bhk, calcSqft, calcPrice, calcRent, a
             <p className="mt-1 text-xs text-stone-400">
               {project
                 ? 'Picked from the list, so its location is included.'
-                : 'Pick from the list if it appears. A name typed by hand is checked by a person before it is published.'}
-              {' '}Project names © OpenStreetMap contributors.
+                : 'Pick from the list if it appears; a name typed by hand is checked by a person first.'}
+              {' '}Names © OpenStreetMap contributors.
             </p>
           </div>
+
+          {!tierFromPrice && (
+            <label className="block text-stone-700">
+              Kind of flat
+              <select value={tier} onChange={(e) => setTier(e.target.value)} className={inputClass}>
+                {TIER_CHOICES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+          )}
 
           <div className="rounded-lg bg-stone-50 px-3 py-2 text-xs text-stone-500">
             <div className="font-medium text-stone-700">Exactly what will be sent</div>
             <div className="mt-1">
-              {ready ? (
-                <>
-                  {payload.area} · {payload.bhk} · {payload.sqft} sqft
-                  {payload.pricePerSqft !== undefined && <> · {inrFull(payload.pricePerSqft)}/sqft</>}
-                  {payload.rentMonthly !== undefined && <> · rent {inrFull(payload.rentMonthly)}</>}
-                  {payload.tier && <> · {TIER_CHOICES.find(([v]) => v === payload.tier)[1].toLowerCase()}</>}
-                  {payload.project && <> · {payload.project.name}</>}
-                  {' '}· this month
-                </>
-              ) : 'Nothing yet — enter a price or a rent above.'}
+              {payload.area} · {payload.bhk} · {payload.sqft} sqft
+              {payload.pricePerSqft !== undefined && <> · {inrFull(payload.pricePerSqft)}/sqft</>}
+              {payload.rentMonthly !== undefined && <> · rent {inrFull(payload.rentMonthly)}</>}
+              {payload.tier && <> · {TIER_CHOICES.find(([v]) => v === payload.tier)[1].toLowerCase()}</>}
+              {payload.project && <> · {payload.project.name}</>}
+              {' '}· this month
             </div>
+            {!matchesEstimate && !(priceChanged && rentChanged) && (
+              <div className="mt-1">
+                The {priceChanged ? 'rent' : 'price'} is still our estimate, so it is left out.
+                Change it above if you have a real figure.
+              </div>
+            )}
             <div className="mt-1">
-              Not sent: your salary, tax, down payment, loan or anything that identifies you. We
-              don't store your IP address.
+              Not sent: salary, tax, down payment, loan or anything that identifies you. We don't
+              store your IP address.
             </div>
           </div>
 
           {state.status === 'error' && <p className="text-xs text-rose-600">{state.message}</p>}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={submit}
-              disabled={!ready || state.status === 'sending'}
+              disabled={state.status === 'sending'}
               className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-teal-800 disabled:opacity-50"
             >
               {state.status === 'sending' ? 'Sending…' : 'Add my quote'}
             </button>
-            {ready && (
-              <button
-                type="button"
-                onClick={() => onApply?.({ pricePerSqft, rentMonthly, sqft: size })}
-                className="text-sm text-teal-700 underline decoration-dotted"
-              >
-                Use these numbers in the calculator
-              </button>
-            )}
+            <button type="button" onClick={() => { setOpen(false); setMatchesEstimate(false) }} className="text-sm text-stone-500 hover:underline">
+              Not now
+            </button>
           </div>
         </div>
-      )}
-
-      {state.status === 'done' && (
-        <p className="mt-4 rounded-lg bg-teal-50 px-3 py-2 text-sm text-stone-700">
-          <strong>Thank you — added.</strong>{' '}
-          {state.result.published
-            ? state.result.area
-              ? `${area} now has ${state.result.area.quotes} shared quotes.`
-              : `We show an area's numbers once it has ${state.result.minimumToShow ?? minimumToShow} quotes; ${area} isn't there yet.`
-            : 'It looked a little unusual, so a person will check it before it is published.'}
-        </p>
       )}
     </div>
   )
