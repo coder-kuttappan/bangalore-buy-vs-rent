@@ -24,6 +24,7 @@ export async function sendQuote(payload) {
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error || 'Could not save the quote. Please try again later.')
+  count('quote_sent')
   return data
 }
 
@@ -31,6 +32,15 @@ export async function fetchStats() {
   const res = await fetch(`${QUOTES_API}/stats`)
   if (!res.ok) throw new Error('stats unavailable')
   return res.json()
+}
+
+// Adds one to an anonymous daily tally (page views, shares, quotes sent). No
+// cookie, no identifier, nothing per visitor — and nothing at all if the
+// browser asks not to be tracked.
+export function count(event) {
+  if (!sharingEnabled || typeof navigator === 'undefined' || navigator.doNotTrack === '1') return
+  // plain text body keeps this a "simple" request the browser sends without a pre-check
+  fetch(`${QUOTES_API}/hit`, { method: 'POST', body: JSON.stringify({ event }), keepalive: true }).catch(() => {})
 }
 
 // "8% above" / "5% below" / "in line with" a median

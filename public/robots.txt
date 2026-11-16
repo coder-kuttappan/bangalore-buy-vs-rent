@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://buyvsrent.coderkuttappan.com/sitemap.xml

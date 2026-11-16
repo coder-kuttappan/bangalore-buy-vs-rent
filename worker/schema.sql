@@ -24,3 +24,12 @@ CREATE TABLE IF NOT EXISTS submitters (
   count INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (day, hash)
 );
+
+-- Anonymous usage tally: how many times something happened on a given day.
+-- One row per day per event. Nothing about who did it.
+CREATE TABLE IF NOT EXISTS hits (
+  day   TEXT    NOT NULL,
+  event TEXT    NOT NULL,
+  n     INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, event)
+);

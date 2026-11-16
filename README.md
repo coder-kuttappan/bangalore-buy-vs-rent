@@ -43,7 +43,7 @@ Tests run before every deploy; a failing test stops the site from updating.
 
 ## Stack
 
-React + Vite + Tailwind v4 + Recharts, with Leaflet for the map. The calculator runs entirely in your browser, with no tracking.
+React + Vite + Tailwind v4 + Recharts, with Leaflet for the map. The calculator runs entirely in your browser. There are no cookies and no third-party trackers. The site keeps an anonymous daily tally of page views, shares and quotes sent (a number per day, nothing per visitor), and skips even that if your browser sends Do Not Track.
 
 The map's street background is loaded from OpenStreetMap's servers, which see your IP address as any website you visit does. Ward boundaries are from the [DataMeet India community](https://github.com/datameet/Municipal_Spatial_Data) (CC BY 4.0), prepared by [`scripts/build-map.mjs`](./scripts/build-map.mjs). Our 20 areas have no official borders, so which wards count as which area is our own grouping.
 

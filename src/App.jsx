@@ -17,7 +17,7 @@ import {
 import Compare from './Compare'
 import ShareQuote from './ShareQuote'
 import ProjectPicker from './ProjectPicker'
-import { sharingEnabled, fetchStats } from './lib/quotes'
+import { sharingEnabled, fetchStats, count } from './lib/quotes'
 
 // the "advanced" slice of a scenario — everything held in the adv state object
 const advFrom = (scenario) =>
@@ -142,6 +142,7 @@ export default function App() {
   const [quoteStats, setQuoteStats] = useState(null)
   const loadQuoteStats = () => { fetchStats().then(setQuoteStats).catch(() => {}) }
   useEffect(() => { if (sharingEnabled) loadQuoteStats() }, [])
+  useEffect(() => { count('view') }, [])
   const [showAdv, setShowAdv] = useState(false)
   const [showCosts, setShowCosts] = useState(false)
   const [showMethod, setShowMethod] = useState(false)
@@ -274,6 +275,29 @@ export default function App() {
   // finishes at tenure — the crossover can land well past "compare over")
   const breakEven = useMemo(() => findBreakEven(simInputs), [simInputs])
   const breakEvenYear = breakEven === null ? null : new Date().getFullYear() + Math.round(breakEven)
+
+  // Share the result in words, with a link that opens this exact scenario. The
+  // link goes through the area's own page (/a/<area>/) so that messaging apps
+  // show that area's headline in the preview.
+  const [shared, setShared] = useState(false)
+  async function shareResult() {
+    const slug = areaName.toLowerCase().replace(/ /g, '-')
+    const url = `${window.location.origin}/a/${slug}/${window.location.hash}`
+    const text = breakEven === null
+      ? `In ${areaName}, renting a ${bhk} stays ahead of buying for 40+ years on my numbers. Check your own:`
+      : `In ${areaName}, buying a ${bhk} pulls ahead of renting after ${years(breakEven)} on my numbers. Check your own:`
+    count('share')
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Buy vs Rent Bangalore', text, url })
+      } else {
+        await navigator.clipboard.writeText(`${text} ${url}`)
+        setShared(true)
+        setTimeout(() => setShared(false), 2500)
+      }
+    } catch { /* the user closed the share sheet, or the clipboard is blocked */ }
+  }
+
 
   // the same scenario with the spare money in an FD, and in equity funds —
   // shown side by side because this choice often decides the answer
@@ -978,6 +1002,13 @@ export default function App() {
               After {adv.horizonYears} years, {verdictBuy ? 'buying' : 'renting'} is ahead by{' '}
               <strong>{inr(result.margin)}</strong>.
             </div>
+            <button
+              type="button"
+              onClick={shareResult}
+              className="mt-3 rounded-full bg-white/15 px-4 py-1.5 text-sm font-medium transition hover:bg-white/25"
+            >
+              {shared ? '✓ Copied — paste it anywhere' : 'Share this result'}
+            </button>
             {adv.investFraction > 0 && (
               <div className="mt-4 rounded-xl bg-white/10 p-3 text-sm">
                 <div className="mb-2 text-xs uppercase tracking-wide opacity-80">

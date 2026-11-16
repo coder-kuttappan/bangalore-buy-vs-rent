@@ -3,6 +3,7 @@
 //   POST /quotes       share one quote
 //   GET  /stats        per-area medians, once an area has enough quotes
 //   GET  /quotes.csv   the open dataset
+//   POST /hit          add one to today's anonymous tally for an event
 //
 // Nothing that identifies a person is stored: no names, no contact details, no
 // IP addresses, and only the month of submission.
@@ -75,6 +76,23 @@ async function addQuote(request, env, cors) {
   return json({ saved: true, published: q.status === 'ok', area: summary.areas[q.area] || null, minimumToShow: summary.minimumToShow }, 201, cors)
 }
 
+// Things worth counting. Anything else is ignored.
+const EVENTS = ['view', 'share', 'quote_sent']
+
+// Adds one to today's tally for an event. Stores a day, an event name and a
+// number — nothing about the visitor.
+async function addHit(request, env, cors) {
+  const text = (await request.text()).slice(0, 100)
+  let event = null
+  try { event = JSON.parse(text).event } catch { /* ignore */ }
+  if (!EVENTS.includes(event)) return new Response(null, { status: 204, headers: cors })
+  const day = new Date().toISOString().slice(0, 10)
+  await env.DB
+    .prepare('INSERT INTO hits (day, event, n) VALUES (?, ?, 1) ON CONFLICT (day, event) DO UPDATE SET n = n + 1')
+    .bind(day, event).run()
+  return new Response(null, { status: 204, headers: cors })
+}
+
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request, env)
@@ -82,6 +100,7 @@ export default {
     try {
       if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
       if (request.method === 'POST' && pathname === '/quotes') return await addQuote(request, env, cors)
+      if (request.method === 'POST' && pathname === '/hit') return await addHit(request, env, cors)
       if (request.method === 'GET' && pathname === '/stats') {
         // the count of held quotes is public but says nothing about them; it
         // lets a scheduled check remind the owner to review
