@@ -16,6 +16,7 @@ import {
 } from './lib/scenario'
 import Compare from './Compare'
 import ShareQuote from './ShareQuote'
+import ProjectPicker from './ProjectPicker'
 import { sharingEnabled, fetchStats } from './lib/quotes'
 
 // the "advanced" slice of a scenario — everything held in the adv state object
@@ -136,6 +137,7 @@ export default function App() {
   const [downPaymentPct, setDownPaymentPct] = useState(initial.downPaymentPct)
   const [adv, setAdv] = useState(() => advFrom(initial))
   const [copied, setCopied] = useState(false)
+  const [project, setProject] = useState(null) // which project or building the quote is for (optional)
   // shared-quote medians per area, when the quotes API is configured
   const [quoteStats, setQuoteStats] = useState(null)
   const loadQuoteStats = () => { fetchStats().then(setQuoteStats).catch(() => {}) }
@@ -441,6 +443,12 @@ export default function App() {
               </p>
             </Field>
 
+            {sharingEnabled && (
+              <Field label="Project or building">
+                <ProjectPicker value={project} onChange={setProject} />
+              </Field>
+            )}
+
             <Field label="Size">
               <div className="flex flex-wrap items-center gap-2">
                 {BHK_PRESETS.map((b) => (
@@ -534,6 +542,7 @@ export default function App() {
                 sqft={sqft}
                 pricePerSqft={pricePerSqft}
                 rentMonthly={rentMonthly}
+                project={project}
                 priceChanged={!TIERS.some(([t]) => area.pricePerSqft[t] === pricePerSqft)}
                 rentChanged={rentMonthly !== defaultRent(area, bhk)
                   && !TIERS.some(([t]) => rentMonthly === Math.round(defaultRent(area, bhk) * area.pricePerSqft[t] / area.pricePerSqft.mid / 500) * 500)}

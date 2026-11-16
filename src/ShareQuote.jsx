@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { inrFull } from './lib/format'
-import { quotePayload, sendQuote, suggestProjects, versusMedian } from './lib/quotes'
+import { quotePayload, sendQuote, versusMedian } from './lib/quotes'
 
 const TIER_CHOICES = [
   ['', 'Not sure'],
@@ -17,32 +17,18 @@ const inputClass = `mt-1 w-full rounded-lg border border-stone-300 bg-white px-3
 // it. A number still equal to our starting estimate is not offered, so our own
 // estimates are never sent back to us as if they were real.
 export default function ShareQuote({
-  area, bhk, sqft, pricePerSqft, rentMonthly, priceChanged, rentChanged, tierFromPrice, areaStats, minimumToShow, onShared,
+  area, bhk, sqft, pricePerSqft, rentMonthly, project, priceChanged, rentChanged, tierFromPrice, areaStats, minimumToShow, onShared,
 }) {
   const [open, setOpen] = useState(false)
   const [matchesEstimate, setMatchesEstimate] = useState(false) // "my quote happens to equal your estimate"
   const [tier, setTier] = useState('')
-  const [projectText, setProjectText] = useState('')
-  const [project, setProject] = useState(null) // a pick from the list, with its position
-  const [projects, setProjects] = useState(null)
   const [state, setState] = useState({ status: 'idle' }) // idle | sending | done | error
-
-  // the project list is only fetched when someone opens this
-  useEffect(() => {
-    if (!open || projects) return
-    fetch(`${import.meta.env.BASE_URL}projects.json`)
-      .then((r) => r.json())
-      .then((d) => setProjects(d.projects))
-      .catch(() => setProjects([]))
-  }, [open, projects])
-
   const sharePrice = priceChanged || matchesEstimate
   const shareRent = rentChanged || matchesEstimate
   const ready = sharePrice || shareRent
-  const suggestions = project ? [] : suggestProjects(projects || [], projectText)
   const payload = quotePayload({
     area, bhk, sqft, pricePerSqft, rentMonthly, tier: tier || tierFromPrice || null, sharePrice, shareRent,
-    project: project || { name: projectText },
+    project,
   })
 
   async function submit() {
@@ -94,41 +80,6 @@ export default function ShareQuote({
       ) : (
         <div className="space-y-3">
           <div className="font-medium text-stone-700">Add this quote to the open dataset</div>
-          <div className="relative">
-            <label className="block text-stone-700">
-              Project or building <span className="text-stone-400">(optional)</span>
-              <input
-                type="text"
-                value={projectText}
-                maxLength={80}
-                placeholder="Start typing a name"
-                onChange={(e) => { setProjectText(e.target.value); setProject(null) }}
-                className={inputClass}
-              />
-            </label>
-            {suggestions.length > 0 && (
-              <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-stone-200 bg-white shadow-lg">
-                {suggestions.map((p) => (
-                  <li key={p[0]}>
-                    <button
-                      type="button"
-                      onClick={() => { setProject({ name: p[0], lat: p[1], lon: p[2] }); setProjectText(p[0]) }}
-                      className="block w-full px-3 py-2 text-left hover:bg-stone-50"
-                    >
-                      {p[0]}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className="mt-1 text-xs text-stone-400">
-              {project
-                ? 'Picked from the list, so its location is included.'
-                : 'Pick from the list if it appears; a name typed by hand is checked by a person first.'}
-              {' '}Names © OpenStreetMap contributors.
-            </p>
-          </div>
-
           {!tierFromPrice && (
             <label className="block text-stone-700">
               Kind of flat
@@ -148,6 +99,12 @@ export default function ShareQuote({
               {payload.project && <> · {payload.project.name}</>}
               {' '}· this month
             </div>
+            {!payload.project && (
+              <div className="mt-1">No project named — add one in the box near the top if you like.</div>
+            )}
+            {payload.project && project?.lat === undefined && (
+              <div className="mt-1">The project name was typed by hand, so a person checks it before it is published.</div>
+            )}
             {!matchesEstimate && !(priceChanged && rentChanged) && (
               <div className="mt-1">
                 The {priceChanged ? 'rent' : 'price'} is still our estimate, so it is left out.
