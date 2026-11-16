@@ -57,6 +57,13 @@ Someone with a real quote can choose to add it to an open dataset. Only this is 
 - The API is a small Cloudflare Worker with a D1 database, in [`worker/`](./worker).
 - Project names for the picker come from OpenStreetMap (© OpenStreetMap contributors, ODbL), built by [`scripts/fetch-projects.mjs`](./scripts/fetch-projects.mjs).
 
+## Keeping the data fresh
+
+- **RBI index:** download the House Price Index spreadsheet from RBI's data portal and run `python3 scripts/update_hpi.py <file>`, then `npm test`.
+- **Reminders:** a scheduled job ([`.github/workflows/reminders.yml`](./.github/workflows/reminders.yml)) opens a GitHub issue when a new RBI quarter should be out, or when shared quotes are waiting for review.
+- **Reviewing held quotes:** from `worker/`, `npm run review` lists them; `approve`, `approve-unnamed` and `reject` act on them.
+- **On the site:** the header shows the date of the area estimates and the latest index quarter, and flags it when newer official data is out.
+
 ## Licence
 
 [MIT](./LICENSE). Use it, fork it, adapt it for your own city.

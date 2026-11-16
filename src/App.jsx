@@ -421,6 +421,10 @@ export default function App() {
                 </button>
               </span>
             </div>
+            <p className="text-sm text-stone-600">
+              <strong className="text-stone-800">Have a quote?</strong> Pick the area and put in
+              its price and rent. Until you do, these are our starting estimates.
+            </p>
             <Field label="Area">
               <select
                 value={areaName}
@@ -493,20 +497,6 @@ export default function App() {
               </p>
             </Field>
 
-            <Field label="Discount off the asking price">
-              <Num
-                value={adv.priceDiscountPct}
-                step={5}
-                onChange={(v) => setAdv({ ...adv, priceDiscountPct: Math.min(v, 90) })}
-                suffix="%"
-              />
-              <p className="mt-1 text-xs text-stone-400">
-                The price above is an asking price. Registered sale values in Bangalore run
-                roughly 10–40% lower, though part of that gap is older flats, not bargaining.
-                Set what you expect to negotiate; leave 0 to use the asking price.
-              </p>
-            </Field>
-
             <div className="rounded-lg bg-stone-50 px-3 py-2 text-sm">
               Property price: <strong>{inr(price)}</strong>{' '}
               <span className="text-stone-400">({inrFull(price)})</span>
@@ -534,32 +524,6 @@ export default function App() {
               onReset={() => setRentMonthly(defaultRent(area, bhk))}
             >
               <Num value={rentMonthly} onChange={setRentMonthly} step={1000} suffix="₹/mo" />
-            </Field>
-
-            <Field label="Security deposit" hint="set either — they stay linked">
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Num
-                    value={securityDeposit}
-                    step={25000}
-                    onChange={(v) => setSecurityDeposit(v)}
-                    suffix="₹ total"
-                  />
-                </div>
-                <div className="w-28">
-                  <Num
-                    value={rentMonthly > 0 ? Math.round(securityDeposit / rentMonthly) : 0}
-                    step={1}
-                    onChange={(v) => setSecurityDeposit(v * rentMonthly)}
-                    suffix="months"
-                  />
-                </div>
-              </div>
-              <p className="mt-1 text-xs text-stone-400">
-                Refundable, but sits idle earning nothing while you rent — the lost returns
-                are a real cost. Landlords quote a number, so set the amount directly or in
-                months of rent.
-              </p>
             </Field>
 
             <div className="border-t border-stone-100 pt-4 space-y-4">
@@ -724,13 +688,58 @@ export default function App() {
           <div className="rounded-2xl bg-white p-5 shadow-sm">
             <button
               onClick={() => setShowCosts(!showCosts)}
-              className="flex w-full items-center justify-between text-sm font-medium text-stone-700"
+              className="flex w-full items-center justify-between text-sm font-medium text-stone-700 text-left"
             >
-              Costs &amp; taxes
+              <span>
+                Costs, deposit &amp; taxes
+                <span className="block text-xs font-normal text-stone-400">
+                  Discount, security deposit, interiors, GST, exit tax, tax regime
+                </span>
+              </span>
               <span className="text-stone-400">{showCosts ? '−' : '+'}</span>
             </button>
             {showCosts && (
               <div className="mt-4 space-y-4">
+                <Field label="Discount off the asking price">
+                  <Num
+                    value={adv.priceDiscountPct}
+                    step={5}
+                    onChange={(v) => setAdv({ ...adv, priceDiscountPct: Math.min(v, 90) })}
+                    suffix="%"
+                  />
+                  <p className="mt-1 text-xs text-stone-400">
+                    The price above is an asking price. Registered sale values in Bangalore run
+                    roughly 10–40% lower, though part of that gap is older flats, not bargaining.
+                    Set what you expect to negotiate; leave 0 to use the asking price.
+                  </p>
+                </Field>
+
+                <Field label="Security deposit" hint="set either — they stay linked">
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Num
+                        value={securityDeposit}
+                        step={25000}
+                        onChange={(v) => setSecurityDeposit(v)}
+                        suffix="₹ total"
+                      />
+                    </div>
+                    <div className="w-28">
+                      <Num
+                        value={rentMonthly > 0 ? Math.round(securityDeposit / rentMonthly) : 0}
+                        step={1}
+                        onChange={(v) => setSecurityDeposit(v * rentMonthly)}
+                        suffix="months"
+                      />
+                    </div>
+                  </div>
+                  <p className="mt-1 text-xs text-stone-400">
+                    Refundable, but sits idle earning nothing while you rent — the lost returns
+                    are a real cost. Landlords quote a number, so set the amount directly or in
+                    months of rent.
+                  </p>
+                </Field>
+
                 <Field label="Property type" hint={adv.propertyType === 'under-construction' ? `+${inr(price * MARKET.cost.gstPct.underConstruction / 100)} GST` : 'no GST'}>
                   <div className="flex gap-2">
                     {[
@@ -877,9 +886,14 @@ export default function App() {
           <div className="rounded-2xl bg-white p-5 shadow-sm">
             <button
               onClick={() => setShowAdv(!showAdv)}
-              className="flex w-full items-center justify-between text-sm font-medium text-stone-700"
+              className="flex w-full items-center justify-between text-sm font-medium text-stone-700 text-left"
             >
-              Assumptions
+              <span>
+                Loan &amp; other assumptions
+                <span className="block text-xs font-normal text-stone-400">
+                  Loan rate and tenure, rent and upkeep inflation, stamp duty, selling cost
+                </span>
+              </span>
               <span className="text-stone-400">{showAdv ? '−' : '+'}</span>
             </button>
             {showAdv && (
