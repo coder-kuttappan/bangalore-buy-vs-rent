@@ -1,0 +1,44 @@
+name: Reminders
+
+# Twice a month, check whether anything needs the owner's attention and, if so,
+# open a GitHub issue. GitHub emails the owner when an issue is opened.
+on:
+  schedule:
+    - cron: '30 3 2,16 * *'   # 2nd and 16th of each month, 09:00 India time
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Work out what is due
+        id: due
+        env:
+          QUOTES_API: https://buyvsrent-quotes.coderkuttappan.workers.dev
+        run: echo "reminders=$(node scripts/reminders.mjs)" >> "$GITHUB_OUTPUT"
+      - name: Open an issue for each reminder not already open
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REMINDERS: ${{ steps.due.outputs.reminders }}
+        run: |
+          echo "$REMINDERS" | jq -c '.[]' | while read -r item; do
+            key=$(echo "$item" | jq -r .key)
+            title=$(echo "$item" | jq -r .title)
+            body=$(echo "$item" | jq -r .body)
+            open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "reminder:$key" --json number --jq length)
+            if [ "$open" = "0" ]; then
+              gh label create "reminder:$key" --repo "$GITHUB_REPOSITORY" --color FBCA04 --force
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body" \
+                --label "reminder:$key" --assignee "$GITHUB_REPOSITORY_OWNER"
+            else
+              echo "Already open: $key"
+            fi
+          done

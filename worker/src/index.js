@@ -83,7 +83,11 @@ export default {
       if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
       if (request.method === 'POST' && pathname === '/quotes') return await addQuote(request, env, cors)
       if (request.method === 'GET' && pathname === '/stats') {
-        return json(summarise(await publishedRows(env)), 200, { ...cors, 'Cache-Control': 'public, max-age=300' })
+        // the count of held quotes is public but says nothing about them; it
+        // lets a scheduled check remind the owner to review
+        const held = await env.DB.prepare("SELECT count(*) AS n FROM quotes WHERE status = 'review'").first()
+        const summary = { ...summarise(await publishedRows(env)), waitingForReview: held?.n ?? 0 }
+        return json(summary, 200, { ...cors, 'Cache-Control': 'public, max-age=300' })
       }
       if (request.method === 'GET' && pathname === '/quotes.csv') {
         return new Response(toCsv(await publishedRows(env)), {

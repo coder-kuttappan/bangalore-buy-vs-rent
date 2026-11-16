@@ -9,7 +9,7 @@
 // cities) ends at Q4 2024-25; the new one (2022-23 = 100, eighteen cities)
 // starts at Q1 2022-23. They overlap for three years, which is what lets us
 // join them. Quarters are Indian financial-year quarters (Q1 = Apr-Jun).
-// The latest quarter is provisional when published (Q1.2026-27(P)).
+// The latest quarter is provisional when published (Q1.2026-27)).
 //
 // To refresh: download the spreadsheet from the path above and append the new
 // rows to HPI_NEW. Everything derived from it recalculates.
@@ -27,7 +27,7 @@ export const HPI_OLD = [
   ['Q1.2014-15', 180.4], ['Q2.2014-15', 174.6], ['Q3.2014-15', 183.08], ['Q4.2014-15', 202.7],
   ['Q1.2015-16', 208.42], ['Q2.2015-16', 208.01], ['Q3.2015-16', 205.92], ['Q4.2015-16', 190.02],
   ['Q1.2016-17', 220.61], ['Q2.2016-17', 220.11], ['Q3.2016-17', 225.14], ['Q4.2016-17', 218.35],
-  ['Q1.2017-18', 227.66], ['Q2.2017-18', 221.0], ['Q3.2017-18', 225.64], ['Q4.2017-18', 232.93],
+  ['Q1.2017-18', 227.66], ['Q2.2017-18', 221], ['Q3.2017-18', 225.64], ['Q4.2017-18', 232.93],
   ['Q1.2018-19', 244.84], ['Q2.2018-19', 245.79], ['Q3.2018-19', 243.25], ['Q4.2018-19', 256.15],
   ['Q1.2019-20', 265.98], ['Q2.2019-20', 273.58], ['Q3.2019-20', 283.8], ['Q4.2019-20', 273.84],
   ['Q1.2020-21', 308.76], ['Q2.2020-21', 297.72], ['Q3.2020-21', 319.13], ['Q4.2020-21', 316.78],
@@ -79,5 +79,41 @@ export function officialAppreciation(years = 10, oldSeries = HPI_OLD, newSeries 
     pct: (Math.pow(growth, 1 / years) - 1) * 100,
     years,
     asOf: newSeries[newSeries.length - 1][0], // e.g. 'Q1.2026-27'
+  }
+}
+
+// ── Keeping the data fresh ────────────────────────────────────────────────
+// RBI publishes each quarter roughly two months after it ends (Q1, April–June,
+// came out in late August). These helpers work out which quarter we hold, when
+// the next one should be out, and whether what we show has gone stale.
+
+// 'Q1.2026-27' -> the Date that quarter ends (Q1 = Apr–Jun, so 30 June 2026)
+export function quarterEnd(label) {
+  const [, q, year] = label.match(/^Q([1-4])\.(\d{4})-\d{2}$/)
+  const startMonth = 3 + (Number(q) - 1) * 3 // months from January of `year`: Q1 starts in April
+  return new Date(Date.UTC(Number(year), startMonth + 3, 0))
+}
+
+export function nextQuarter(label) {
+  const [, q, year] = label.match(/^Q([1-4])\.(\d{4})-\d{2}$/)
+  const nq = Number(q) === 4 ? 1 : Number(q) + 1
+  const ny = Number(q) === 4 ? Number(year) + 1 : Number(year)
+  return `Q${nq}.${ny}-${String((ny + 1) % 100).padStart(2, '0')}`
+}
+
+const RELEASE_LAG_DAYS = 65 // quarter end to publication, with a little slack
+
+// What we hold, what should come next, and whether it is overdue or stale.
+export function hpiStatus(now = new Date(), series = HPI_NEW) {
+  const latest = series[series.length - 1][0]
+  const next = nextQuarter(latest)
+  const due = new Date(quarterEnd(next).getTime() + RELEASE_LAG_DAYS * 86400000)
+  const daysLate = Math.floor((now - due) / 86400000)
+  return {
+    latest,                 // e.g. 'Q1.2026-27'
+    next,                   // the quarter RBI should publish next
+    nextDue: due.toISOString().slice(0, 10),
+    updateDue: daysLate >= 0,   // a newer quarter should be out by now
+    stale: daysLate >= 120,     // we are more than one quarter behind: say so on the site
   }
 }

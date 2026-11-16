@@ -8,7 +8,7 @@ import {
 } from './lib/calc'
 import { inr, inrFull, years } from './lib/format'
 import { AREAS, BHK_PRESETS, DEFAULTS, DATA_ASOF, CITY_APPRECIATION } from './data/areas'
-import { HPI_SOURCE_URL } from './data/hpi'
+import { HPI_SOURCE_URL, hpiStatus } from './data/hpi'
 import { MARKET } from './markets/india'
 import {
   defaultRent, defaultsFor, sizeCosts, defaultInteriors, encodeScenario, decodeScenario, toSimInputs, dealPrice,
@@ -341,7 +341,14 @@ export default function App() {
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-stone-400">
-          <span>Area data as of {DATA_ASOF}</span>
+          <span>
+            Area estimates: {DATA_ASOF} · price index: {hpiStatus().latest.replace('.', ' ')}
+            {hpiStatus().stale && (
+              <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-700">
+                newer official data is out — update pending
+              </span>
+            )}
+          </span>
           <span>·</span>
           <div className="relative">
             <button

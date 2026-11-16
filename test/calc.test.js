@@ -166,8 +166,13 @@ test('every area produces sane numbers on its defaults', () => {
 test('official appreciation is the 10-year RBI growth rate for Bangalore', async () => {
   const { officialAppreciation } = await import('../src/data/hpi.js')
   const ten = officialAppreciation(10)
-  near(ten.pct, 6.83, 0.01) // pinned to the series as of Q1 2026-27; update when data is refreshed
-  assert.equal(ten.asOf, 'Q1.2026-27')
+  const { HPI_NEW, HPI_OLD } = await import('../src/data/hpi.js')
+  // whatever the latest data, the figure must be a believable long-run rate
+  assert.ok(ten.pct > 3 && ten.pct < 12, `10-year rate ${ten.pct}`)
+  assert.equal(ten.asOf, HPI_NEW[HPI_NEW.length - 1][0])
+  // the two series must still overlap for the join to work, with no missing quarters
+  assert.ok(HPI_OLD.some(([q]) => q.endsWith('.2022-23')) && HPI_NEW[0][0] === 'Q1.2022-23')
+  assert.ok(HPI_NEW.every(([q, v]) => /^Q[1-4]\.\d{4}-\d{2}$/.test(q) && v > 50 && v < 1000))
   // a flat series grows 0%; one that doubles in 10 years grows ~7.18%/yr
   const quarters = (fromYear, n, value) => Array.from({ length: n }, (_, i) => {
     const y = fromYear + Math.floor(i / 4)
@@ -178,6 +183,22 @@ test('official appreciation is the 10-year RBI growth rate for Bangalore', async
   const doublingNew = quarters(2022, 16, (i) => 50 * Math.pow(2, i / 40))
   const doublingOld = quarters(2010, 52, (i) => 100 * Math.pow(2, (i - 48) / 40))
   near(officialAppreciation(10, doublingOld, doublingNew).pct, 7.177, 0.01)
+})
+
+test('data freshness: knows which quarter is next and when it is overdue', async () => {
+  const { hpiStatus, quarterEnd, nextQuarter } = await import('../src/data/hpi.js')
+  assert.equal(quarterEnd('Q1.2026-27').toISOString().slice(0, 10), '2026-06-30')
+  assert.equal(quarterEnd('Q4.2026-27').toISOString().slice(0, 10), '2027-03-31')
+  assert.equal(nextQuarter('Q1.2026-27'), 'Q2.2026-27')
+  assert.equal(nextQuarter('Q4.2026-27'), 'Q1.2027-28')
+  assert.equal(nextQuarter('Q4.2098-99'), 'Q1.2099-00')
+  const series = [['Q1.2026-27', 127.1]]
+  // Q2 (Jul–Sep 2026) ends 30 Sep; due about 65 days later, on 4 Dec
+  assert.equal(hpiStatus(new Date('2026-11-16'), series).updateDue, false)
+  assert.equal(hpiStatus(new Date('2026-12-10'), series).updateDue, true)
+  assert.equal(hpiStatus(new Date('2026-12-10'), series).stale, false)
+  assert.equal(hpiStatus(new Date('2027-04-10'), series).stale, true)
+  assert.equal(hpiStatus(new Date('2026-12-10'), series).next, 'Q2.2026-27')
 })
 
 test('each area starts at the official end of its appreciation range', async () => {

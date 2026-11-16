@@ -6,7 +6,8 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "db:local": "wrangler d1 execute buyvsrent-quotes --local --file=./schema.sql",
-    "db:remote": "wrangler d1 execute buyvsrent-quotes --remote --file=./schema.sql"
+    "db:remote": "wrangler d1 execute buyvsrent-quotes --remote --file=./schema.sql",
+    "review": "node scripts/review.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.36.0"
